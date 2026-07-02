@@ -1,0 +1,12 @@
+World map assets (all CC0 / public domain):
+
+1. Puny World Overworld Tileset — Shade (merchant-shade.itch.io / OpenGameArt)
+   Used for grassland and mountain floating island scenes.
+
+2. Tiny Islands 16x16 Tilemap — Majadroid (majadroid.itch.io / OpenGameArt)
+   Used for tropical island scene (based on included sample-scene layout).
+
+3. Perfectly Seamless Island Background — LuminousDragonGames (OpenGameArt)
+   Optional parallax reference; water tiles derived from Puny World sheet.
+
+Attribution appreciated but not required.

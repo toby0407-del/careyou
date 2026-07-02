@@ -1,0 +1,188 @@
+/* 患者端 — 字體以預設尺寸放大 1.8 倍（大字易讀） */
+.patient-large-text {
+  font-size: 28.8px;
+  line-height: 1.45;
+}
+
+.patient-large-text .text-\[8px\] {
+  font-size: 14.4px !important;
+  line-height: 1.35 !important;
+}
+
+.patient-large-text .text-\[9px\] {
+  font-size: 16.2px !important;
+  line-height: 1.35 !important;
+}
+
+.patient-large-text .text-\[10px\] {
+  font-size: 18px !important;
+  line-height: 1.4 !important;
+}
+
+.patient-large-text .text-\[11px\] {
+  font-size: 19.8px !important;
+  line-height: 1.4 !important;
+}
+
+.patient-large-text .text-xs {
+  font-size: 21.6px !important;
+  line-height: 1.4 !important;
+}
+
+.patient-large-text .text-sm {
+  font-size: 25.2px !important;
+  line-height: 1.45 !important;
+}
+
+.patient-large-text .text-base {
+  font-size: 28.8px !important;
+  line-height: 1.5 !important;
+}
+
+.patient-large-text .text-lg {
+  font-size: 32.4px !important;
+  line-height: 1.45 !important;
+}
+
+.patient-large-text .text-xl {
+  font-size: 36px !important;
+  line-height: 1.4 !important;
+}
+
+.patient-large-text .text-2xl {
+  font-size: 43.2px !important;
+  line-height: 1.3 !important;
+}
+
+.patient-large-text .text-3xl {
+  font-size: 54px !important;
+  line-height: 1.25 !important;
+}
+
+/* 客服視窗配合大字 */
+.patient-large-text.patient-chat-panel {
+  width: min(32rem, 94vw) !important;
+  height: min(640px, 78vh) !important;
+}
+
+/* 闖關地圖 — 維持緊湊版面，不受 1.8x 大字縮放影響 */
+.patient-large-text .patient-map-ui {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.patient-large-text .patient-map-ui .map-text-title {
+  font-size: 15px !important;
+  line-height: 1.3 !important;
+}
+
+.patient-large-text .patient-map-ui .map-text-sub {
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+}
+
+.patient-large-text .patient-map-ui .map-text-xs {
+  font-size: 10px !important;
+  line-height: 1.35 !important;
+}
+
+.patient-large-text .patient-map-ui .map-text-sm {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.patient-large-text .patient-map-ui .map-text-md {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+}
+
+/* 訓練分類進度條 — 大字易讀 */
+.patient-large-text .patient-map-ui .category-strip {
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.patient-large-text .patient-map-ui .category-strip-title {
+  font-size: 20px !important;
+  line-height: 1.3 !important;
+}
+
+.patient-large-text .patient-map-ui .category-strip-count {
+  font-size: 22px !important;
+  line-height: 1.2 !important;
+}
+
+.patient-large-text .patient-map-ui .category-strip .w-11 {
+  width: 3.25rem !important;
+  height: 3.25rem !important;
+}
+
+.patient-large-text .patient-map-ui .category-strip .w-6 {
+  width: 1.75rem !important;
+  height: 1.75rem !important;
+}
+
+.patient-large-text .patient-map-ui .category-strip .min-h-\[80px\] {
+  min-height: 96px !important;
+}
+
+.patient-large-text .patient-map-ui .category-strip .h-2\.5 {
+  height: 0.625rem !important;
+}
+
+/* 復健結果 — 圖表與月曆維持可讀且不截字 */
+.patient-large-text .patient-results-ui {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.patient-large-text .patient-results-ui .results-text-xs {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.patient-large-text .patient-results-ui .results-text-sm {
+  font-size: 13px !important;
+  line-height: 1.4 !important;
+}
+
+.patient-large-text .patient-results-ui .results-text-md {
+  font-size: 15px !important;
+  line-height: 1.35 !important;
+}
+
+.patient-large-text .patient-results-ui .results-text-lg {
+  font-size: 17px !important;
+  line-height: 1.3 !important;
+}
+
+/* 里程碑頁 — 重新設計成資訊更精簡的卡片 */
+.patient-large-text .patient-milestones-ui {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.patient-large-text .patient-milestones-ui .milestone-title {
+  font-size: 14px !important;
+  line-height: 1.25 !important;
+}
+
+.patient-large-text .patient-milestones-ui .milestone-progress {
+  font-size: 16px !important;
+  line-height: 1.2 !important;
+}
+
+.patient-large-text .patient-milestones-ui .milestone-sub {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+.patient-large-text .patient-milestones-ui .milestone-stat {
+  font-size: 18px !important;
+  line-height: 1.1 !important;
+}
+
+.patient-large-text .patient-milestones-ui .milestone-chip {
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+}

@@ -1,0 +1,35 @@
+/* 全站字體 — Arial Black 風格無襯線（中文自動 fallback 至黑體） */
+:root {
+  --font-family-sans:
+    "Arial Black",
+    "Arial Bold",
+    "Helvetica Neue",
+    "PingFang TC",
+    "PingFang SC",
+    "Microsoft JhengHei UI",
+    "Microsoft JhengHei",
+    "Heiti TC",
+    "Heiti SC",
+    "Noto Sans TC",
+    sans-serif;
+}
+
+html,
+body,
+#root,
+button,
+input,
+select,
+textarea {
+  font-family: var(--font-family-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* 圖表文字同步字體 */
+.recharts-text,
+.recharts-cartesian-axis-tick-value,
+.recharts-legend-item-text,
+.recharts-tooltip-wrapper {
+  font-family: var(--font-family-sans) !important;
+}

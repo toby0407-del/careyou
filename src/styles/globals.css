@@ -1,0 +1,53 @@
+/* RehabBridge global design accents */
+
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+.rehab-landscape {
+  /* Optimized for landscape tablet / horizontal viewing */
+}
+
+/* Subtle decorative line utility */
+.rehab-line-accent::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(20, 184, 166, 0.4), transparent);
+}
+
+/* Smooth scrollbar for challenge map */
+.overflow-x-auto::-webkit-scrollbar {
+  height: 4px;
+}
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: rgba(20, 184, 166, 0.3);
+  border-radius: 4px;
+}
+
+/* Landscape hint for mobile portrait */
+@media (orientation: portrait) and (max-width: 768px) {
+  .rehab-landscape::after {
+    content: "建議橫向使用以獲得最佳體驗";
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(15, 118, 110, 0.95);
+    color: white;
+    text-align: center;
+    padding: 6px;
+    font-size: 11px;
+    z-index: 9999;
+    pointer-events: none;
+  }
+}
