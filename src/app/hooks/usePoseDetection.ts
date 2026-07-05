@@ -3,6 +3,7 @@ import * as tf from "@tensorflow/tfjs";
 import "@tensorflow/tfjs-backend-webgl";
 import * as poseDetection from "@tensorflow-models/pose-detection";
 import type { Keypoint, PoseDetector } from "@tensorflow-models/pose-detection";
+import { prepareKeypointsForVideo } from "../utils/poseAnalysis";
 
 export type CameraState =
   | "idle"
@@ -178,11 +179,12 @@ export function usePoseDetection({
 
         busyRef.current = true;
         detectorRef.current
-          .estimatePoses(v, { flipHorizontal: false, maxPoses: 1 })
+          .estimatePoses(v, { flipHorizontal: true, maxPoses: 1 })
           .then((poses) => {
-            const kp = poses[0]?.keypoints ?? [];
+            const raw = poses[0]?.keypoints ?? [];
+            const kp = prepareKeypointsForVideo(raw, v.videoWidth, v.videoHeight);
             setKeypoints(kp);
-            setActiveKeypoints(kp.filter((k) => (k.score ?? 0) >= 0.2).length);
+            setActiveKeypoints(kp.filter((k) => (k.score ?? 0) >= 0.15).length);
             onPoseRef.current?.(kp);
             frames++;
             const now = performance.now();
@@ -215,10 +217,12 @@ export function usePoseDetection({
 
   // Re-bind stream if video element remounts while stream is alive
   useEffect(() => {
+    if (!enabled || cameraState !== "ready") return;
     const video = videoRef.current;
-    if (!video || !streamRef.current || cameraState !== "ready") return;
-    if (!video.srcObject) bindStreamToVideo(video);
-  });
+    if (!video || !streamRef.current) return;
+    if (video.srcObject === streamRef.current && video.readyState >= 2) return;
+    void bindStreamToVideo(video);
+  }, [enabled, cameraState, bindStreamToVideo, videoRef]);
 
   useEffect(() => {
     if (!enabled) { stop(); setCameraState("idle"); return; }

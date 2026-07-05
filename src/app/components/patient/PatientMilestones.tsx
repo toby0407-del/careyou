@@ -1,11 +1,11 @@
-import { useState } from "react";
-import { motion } from "motion/react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import { Trophy, Lock, CheckCircle2, Calendar, Sparkles } from "lucide-react";
 import {
+  getLiveMilestones,
   milestones,
-  milestoneCategories,
   type MilestoneCategory,
 } from "../../data/milestones";
+import { subscribeProgress } from "../../data/progressStore";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
 
 const CATEGORY_THEME: Record<
@@ -44,6 +44,40 @@ const CATEGORY_THEME: Record<
   },
 };
 
+const GRID_COLS = 4;
+const GRID_GAP_PX = 12;
+const CARD_HEIGHT_PX = 172;
+
+function useMilestonePageLayout(scrollRef: RefObject<HTMLDivElement | null>) {
+  const [layout, setLayout] = useState({ rows: 2, perPage: GRID_COLS * 2 });
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const update = () => {
+      const height = el.clientHeight;
+      const rows = Math.max(1, Math.floor((height + GRID_GAP_PX) / (CARD_HEIGHT_PX + GRID_GAP_PX)));
+      setLayout({ rows, perPage: GRID_COLS * rows });
+    };
+
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [scrollRef]);
+
+  return layout;
+}
+
+function chunkMilestones<T>(items: T[], size: number): T[][] {
+  const pages: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    pages.push(items.slice(i, i + size));
+  }
+  return pages.length > 0 ? pages : [[]];
+}
+
 function MilestoneCard({
   milestone,
   onOpen,
@@ -60,9 +94,10 @@ function MilestoneCard({
     <button
       type="button"
       onClick={onOpen}
-      className={`${theme.bg} milestone-card rounded-2xl border p-3 flex flex-col h-full relative overflow-hidden ${
+      className={`${theme.bg} milestone-card rounded-2xl border p-3 flex flex-col relative overflow-hidden ${
         milestone.unlocked ? "border-emerald-200" : "border-slate-200"
-      } text-left hover:shadow-sm transition-all`}
+      } text-left hover:shadow-sm transition-all w-full`}
+      style={{ height: CARD_HEIGHT_PX, minHeight: CARD_HEIGHT_PX, maxHeight: CARD_HEIGHT_PX }}
     >
       <div className="absolute top-3 right-3">
         {milestone.unlocked ? (
@@ -99,8 +134,8 @@ function MilestoneCard({
         </div>
       </div>
 
-      {!milestone.unlocked && (
-        <div className="mt-3">
+      {!milestone.unlocked ? (
+        <div className="mt-3 flex-shrink-0">
           <div className="h-2 bg-white/80 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full bg-gradient-to-r ${theme.progress}`}
@@ -112,6 +147,8 @@ function MilestoneCard({
             <span style={{ fontWeight: 700 }}>{pct}%</span>
           </div>
         </div>
+      ) : (
+        <div className="mt-3 flex-shrink-0 h-[26px]" aria-hidden />
       )}
 
       <div className="mt-auto pt-2 flex justify-end">
@@ -121,114 +158,121 @@ function MilestoneCard({
   );
 }
 
-export function PatientMilestones() {
-  const [activeCategory, setActiveCategory] = useState<MilestoneCategory | "all" | "locked">("locked");
-  const [selectedMilestone, setSelectedMilestone] = useState<(typeof milestones)[0] | null>(null);
-  const [lockedPage, setLockedPage] = useState(0);
+type MilestoneFilter = "completed" | "locked";
 
-  const filtered =
-    activeCategory === "all"
-      ? milestones.filter((m) => m.unlocked)
-      : activeCategory === "locked"
-      ? milestones.filter((m) => !m.unlocked)
-      : milestones.filter((m) => m.category === activeCategory && m.unlocked);
-  const lockedMilestones = milestones.filter((m) => !m.unlocked).slice(0, 20);
-  const lockedPageSize = 8;
-  const lockedPageCount = Math.ceil(lockedMilestones.length / lockedPageSize);
-  const visibleMilestones =
-    activeCategory === "locked"
-      ? lockedMilestones.slice(
-          lockedPage * lockedPageSize,
-          lockedPage * lockedPageSize + lockedPageSize
-        )
-      : filtered;
-  const gridClassName =
-    activeCategory === "locked"
-      ? "grid-cols-4 auto-rows-[minmax(148px,1fr)]"
-      : "grid-cols-4 auto-rows-[minmax(148px,1fr)]";
+function MilestoneLegend() {
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500 ml-auto flex-shrink-0">
+      <span className="flex items-center gap-1">
+        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+        已完成
+      </span>
+      <span className="flex items-center gap-1">
+        <Lock className="w-3.5 h-3.5 text-slate-400" />
+        未完成
+      </span>
+      <span className="flex items-center gap-1">
+        <Trophy className="w-3.5 h-3.5 text-amber-500" />
+        獎勵
+      </span>
+      <span className="flex items-center gap-1">
+        <span className="w-8 h-1.5 rounded-full bg-gradient-to-r from-teal-400 to-emerald-400" />
+        進度
+      </span>
+    </div>
+  );
+}
+
+let milestoneVersion = 0;
+
+export function PatientMilestones() {
+  const [activeFilter, setActiveFilter] = useState<MilestoneFilter>("locked");
+  const [selectedMilestone, setSelectedMilestone] = useState<(typeof milestones)[0] | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const { rows, perPage } = useMilestonePageLayout(scrollRef);
+
+  // 訂閱進度更新 → 里程碑即時反映（連續天數 / 關卡 / 標準動作）
+  const version = useSyncExternalStore(
+    (listener) => subscribeProgress(() => {
+      milestoneVersion += 1;
+      listener();
+    }),
+    () => milestoneVersion
+  );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const liveMilestones = useMemo(() => getLiveMilestones(), [version]);
+
+  const sourceList =
+    activeFilter === "locked"
+      ? liveMilestones.filter((m) => !m.unlocked)
+      : liveMilestones.filter((m) => m.unlocked);
+
+  const pages = useMemo(() => chunkMilestones(sourceList, perPage), [sourceList, perPage]);
+
+  const switchFilter = (filter: MilestoneFilter) => {
+    setActiveFilter(filter);
+    scrollRef.current?.scrollTo({ left: 0, behavior: "auto" });
+  };
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ left: 0, behavior: "auto" });
+  }, [perPage]);
 
   return (
-    <div className="patient-milestones-ui h-full flex flex-col gap-3 overflow-hidden">
-      <div className="flex gap-2 pb-1 flex-shrink-0 overflow-x-auto">
+    <div className="patient-milestones-ui h-full flex flex-col gap-2 overflow-hidden">
+      <div className="flex items-center gap-2 pb-1 flex-shrink-0 flex-wrap">
         <button
-          onClick={() => {
-            setActiveCategory("all");
-            setLockedPage(0);
-          }}
+          onClick={() => switchFilter("completed")}
           className={`px-4 py-2 rounded-full milestone-chip flex-shrink-0 transition-all ${
-            activeCategory === "all"
+            activeFilter === "completed"
               ? "bg-teal-600 text-white"
-              : "bg-white text-slate-600 border border-slate-200"
+              : "bg-white/80 text-emerald-800 border border-emerald-100"
           }`}
           style={{ fontWeight: 700 }}
         >
-          全部
+          已完成
         </button>
         <button
-          onClick={() => {
-            setActiveCategory("locked");
-            setLockedPage(0);
-          }}
+          onClick={() => switchFilter("locked")}
           className={`px-4 py-2 rounded-full milestone-chip flex-shrink-0 transition-all ${
-            activeCategory === "locked"
+            activeFilter === "locked"
               ? "bg-teal-600 text-white"
-              : "bg-white text-slate-600 border border-slate-200"
+              : "bg-white/80 text-emerald-800 border border-emerald-100"
           }`}
           style={{ fontWeight: 700 }}
         >
           未完成
         </button>
-        {milestoneCategories.map((cat) => (
-          <button
-            key={cat.id}
-            onClick={() => {
-              setActiveCategory(cat.id);
-              setLockedPage(0);
-            }}
-            className={`px-4 py-2 rounded-full milestone-chip flex-shrink-0 transition-all ${
-              activeCategory === cat.id
-                ? "bg-teal-600 text-white"
-                : "bg-white text-slate-600 border border-slate-200"
-            }`}
-            style={{ fontWeight: 700 }}
-          >
-            {cat.label}
-          </button>
-        ))}
+        <MilestoneLegend />
       </div>
 
-      {activeCategory === "locked" && lockedPageCount > 1 && (
-        <div className="flex items-center justify-between flex-shrink-0">
-          <p className="text-xs text-slate-500">
-            未完成成就 {lockedMilestones.length} 項
-          </p>
-          <div className="flex items-center gap-2">
-            {Array.from({ length: lockedPageCount }).map((_, page) => (
-              <button
-                key={page}
-                type="button"
-                onClick={() => setLockedPage(page)}
-                className={`px-3 py-1.5 rounded-full text-xs border transition-colors ${
-                  lockedPage === page
-                    ? "bg-teal-600 text-white border-teal-600"
-                    : "bg-white text-slate-600 border-slate-200"
-                }`}
-                style={{ fontWeight: 700 }}
-              >
-                {page * lockedPageSize + 1}-{Math.min((page + 1) * lockedPageSize, lockedMilestones.length)}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      <p className="text-[10px] text-slate-400 flex-shrink-0">
+        {activeFilter === "locked" ? "未完成" : "已完成"}共 {sourceList.length} 項 · ← 左右滑動切換 →
+      </p>
 
-      <div className={`flex-1 min-h-0 grid ${gridClassName} gap-3 overflow-hidden content-start`}>
-        {visibleMilestones.map((m) => (
-          <MilestoneCard
-            key={m.id}
-            milestone={m}
-            onOpen={() => setSelectedMilestone(m)}
-          />
+      <div
+        ref={scrollRef}
+        className="milestone-scroll flex-1 min-h-0 flex overflow-x-auto overflow-y-hidden snap-x snap-mandatory scroll-smooth touch-pan-x"
+      >
+        {pages.map((pageItems, pageIndex) => (
+          <div
+            key={pageIndex}
+            className="snap-start snap-always flex-shrink-0 w-full h-full grid grid-cols-4 gap-3"
+            style={{ gridTemplateRows: `repeat(${rows}, ${CARD_HEIGHT_PX}px)` }}
+          >
+            {pageItems.map((m) => (
+              <MilestoneCard key={m.id} milestone={m} onOpen={() => setSelectedMilestone(m)} />
+            ))}
+            {pageItems.length < perPage &&
+              Array.from({ length: perPage - pageItems.length }).map((_, i) => (
+                <div
+                  key={`pad-${pageIndex}-${i}`}
+                  className="rounded-2xl border border-transparent pointer-events-none"
+                  style={{ height: CARD_HEIGHT_PX }}
+                  aria-hidden
+                />
+              ))}
+          </div>
         ))}
       </div>
 
@@ -255,14 +299,14 @@ export function PatientMilestones() {
 
             <div className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
+                <div className="rounded-2xl bg-emerald-50/80 border border-emerald-100 px-4 py-3">
                   <p className="text-slate-400 text-xs">目前進度</p>
                   <p className="text-slate-800 text-lg mt-1" style={{ fontWeight: 800 }}>
                     {selectedMilestone.current}/{selectedMilestone.target}
                     <span className="text-sm ml-1">{selectedMilestone.unit}</span>
                   </p>
                 </div>
-                <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
+                <div className="rounded-2xl bg-emerald-50/80 border border-emerald-100 px-4 py-3">
                   <p className="text-slate-400 text-xs">狀態</p>
                   <p
                     className={`text-lg mt-1 ${selectedMilestone.unlocked ? "text-emerald-600" : "text-amber-600"}`}
@@ -271,7 +315,7 @@ export function PatientMilestones() {
                     {selectedMilestone.unlocked ? "已解鎖" : "進行中"}
                   </p>
                 </div>
-                <div className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
+                <div className="rounded-2xl bg-emerald-50/80 border border-emerald-100 px-4 py-3">
                   <p className="text-slate-400 text-xs">完成度</p>
                   <p className="text-teal-600 text-lg mt-1" style={{ fontWeight: 800 }}>
                     {Math.min(100, Math.round((selectedMilestone.current / selectedMilestone.target) * 100))}%
@@ -279,7 +323,7 @@ export function PatientMilestones() {
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-white border border-slate-100 px-4 py-4 space-y-3">
+              <div className="rounded-2xl bg-white/85 border border-emerald-100 px-4 py-4 space-y-3">
                 <div className="flex items-start gap-3">
                   <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 flex-shrink-0" />
                   <div>

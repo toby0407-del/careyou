@@ -1,0 +1,134 @@
+import { ArrowRight, Layers } from "lucide-react";
+import { getAppDisplayName } from "../../brand";
+import { Block, BlockLayer, BlockRow, BlockStack } from "./BlueprintBlocks";
+
+const LAYERS = [
+  {
+    title: "使用者角色",
+    subtitle: "三端入口",
+    color: "#8b5cf6",
+    blocks: [
+      { label: "患者端", sub: "淡綠 UI", color: "#0d9488" },
+      { label: "家屬端", sub: "玫瑰 UI", color: "#f43f5e" },
+      { label: "醫師端", sub: "專業藍", color: "#38bdf8" },
+    ],
+  },
+  {
+    title: "應用介面",
+    subtitle: "React 頁面模組",
+    color: "#a78bfa",
+    blocks: [
+      { label: "全局入口", sub: "角色選擇", color: "#8b5cf6" },
+      { label: "患者首頁", sub: "地圖·小伴·迴廊", color: "#0d9488" },
+      { label: "復健執行", sub: "鏡頭·舉手·TTS", color: "#14b8a6" },
+      { label: "家屬端", sub: "總覽·迴廊·打氣", color: "#f43f5e" },
+      { label: "醫師後台", sub: "處方·同步", color: "#38bdf8" },
+    ],
+  },
+  {
+    title: "核心功能",
+    subtitle: "業務服務層",
+    color: "#10b981",
+    blocks: [
+      { label: "小伴 AI", sub: "本機規則", color: "#8b5cf6" },
+      { label: "時光迴廊", sub: "6 張解鎖", color: "#0d9488" },
+      { label: "姿勢偵測", sub: "BlazePose", color: "#6366f1" },
+      { label: "語音教練", sub: "Web Speech", color: "#ec4899" },
+      { label: "家人打氣", sub: "即時橫幅", color: "#f43f5e" },
+      { label: "里程碑", sub: "即時解鎖", color: "#f59e0b" },
+    ],
+  },
+  {
+    title: "資料層",
+    subtitle: "progressStore · localStorage",
+    color: "#f59e0b",
+    blocks: [
+      { label: "progressStore", sub: "統一進度", color: "#0d9488" },
+      { label: "timeGallery", sub: "照片牆", color: "#14b8a6" },
+      { label: "dailyReveal", sub: "每日 6 張", color: "#8b5cf6" },
+      { label: "encouragements", sub: "家人訊息", color: "#f43f5e" },
+      { label: "companionAI", sub: "小伴記憶", color: "#a78bfa" },
+    ],
+  },
+  {
+    title: "技術基礎",
+    subtitle: "執行環境",
+    color: "#6366f1",
+    blocks: [
+      { label: "React + TS", sub: "Vite 5200", color: "#6366f1" },
+      { label: "TensorFlow.js", sub: "WebGL/CPU", color: "#8b5cf6" },
+      { label: "Router", sub: "SPA", color: "#a78bfa" },
+      { label: "Capacitor", sub: "iOS 備援", color: "#f59e0b" },
+    ],
+  },
+];
+
+const PIPELINE = [
+  { label: "鏡頭", sub: "getUserMedia", color: "#38bdf8" },
+  { label: "BlazePose", sub: "33 點", color: "#8b5cf6" },
+  { label: "MoveNet", sub: "17 點備援", color: "#6366f1" },
+  { label: "舉手確認", sub: "開始訓練", color: "#0d9488" },
+  { label: "角度·次數", sub: "品質評分", color: "#f59e0b" },
+  { label: "寫入進度", sub: "解鎖迴廊", color: "#10b981" },
+];
+
+const SYNC = [
+  { from: "訓練完成", to: "progressStore", color: "#0d9488" },
+  { from: "通關解鎖", to: "時光迴廊", color: "#8b5cf6" },
+  { from: "家人打氣", to: "小伴 AI", color: "#f43f5e" },
+  { from: "醫師設患者", to: "三端同步", color: "#38bdf8" },
+];
+
+export function SystemBlockDiagram() {
+  return (
+    <div className="h-full flex flex-col gap-2 min-h-0">
+      <div className="rounded-xl border border-violet-200 bg-white/75 px-3 py-2 flex items-center gap-2 flex-shrink-0 shadow-sm shadow-violet-100/40">
+        <Layers className="w-4 h-4 text-violet-600 flex-shrink-0" />
+        <div>
+          <p className="text-violet-950 text-[11px]" style={{ fontWeight: 800 }}>
+            {getAppDisplayName()} 系統架構方塊圖
+          </p>
+          <p className="text-violet-600/70 text-[9px]">分層模組 · 跨端同步 · 復健管線 · 時光迴廊</p>
+        </div>
+      </div>
+
+      <div className="flex-1 min-h-0 grid grid-cols-12 gap-2">
+        <div className="col-span-8 min-h-0 overflow-y-auto pr-1 space-y-1.5">
+          {LAYERS.map((layer) => (
+            <BlockLayer key={layer.title} title={layer.title} subtitle={layer.subtitle} color={layer.color}>
+              <BlockRow
+                blocks={layer.blocks.map((b) => ({
+                  key: b.label,
+                  node: <Block label={b.label} sub={b.sub} color={b.color} className="min-w-[72px]" />,
+                }))}
+              />
+            </BlockLayer>
+          ))}
+        </div>
+
+        <div className="col-span-4 min-h-0 flex flex-col gap-2">
+          <BlockLayer title="復健執行管線" subtitle="鏡頭 → 解鎖" color="#8b5cf6">
+            <BlockStack
+              blocks={PIPELINE.map((p) => ({
+                key: p.label,
+                node: <Block label={p.label} sub={p.sub} color={p.color} className="w-full" />,
+              }))}
+            />
+          </BlockLayer>
+
+          <BlockLayer title="跨端資料同步" subtitle="即時流向" color="#f59e0b">
+            <div className="space-y-1.5">
+              {SYNC.map((row) => (
+                <div key={row.from} className="flex items-center gap-1.5">
+                  <Block label={row.from} color={row.color} className="flex-1" />
+                  <ArrowRight className="w-3 h-3 text-violet-300 flex-shrink-0" />
+                  <Block label={row.to} color="#8b5cf6" className="flex-1" />
+                </div>
+              ))}
+            </div>
+          </BlockLayer>
+        </div>
+      </div>
+    </div>
+  );
+}

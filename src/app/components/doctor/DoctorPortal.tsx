@@ -1,6 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useSyncExternalStore } from "react";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Search,
@@ -24,6 +25,7 @@ import {
   Calendar,
   Trash2,
   ShoppingCart,
+  MonitorSmartphone,
 } from "lucide-react";
 import {
   LineChart,
@@ -39,7 +41,11 @@ import {
 import { ChatWidget } from "../shared/ChatWidget";
 import { NotificationBell } from "../shared/NotificationBell";
 import { PatientProfileDialog } from "../shared/PatientProfileDialog";
-import { getPatientProfile } from "../../data/patientProfiles";
+import { PatientAnalyticsPanel } from "../shared/PatientAnalyticsPanel";
+import { TodayLiveFeed } from "../shared/TodayLiveFeed";
+import { DailyRevealStatusCard } from "../shared/DailyRevealStatusCard";
+import { DEFAULT_PATIENT_ID, getPatientProfile } from "../../data/patientProfiles";
+import { getPatientAnalytics } from "../../data/patientAnalytics";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Checkbox } from "../ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -59,6 +65,20 @@ import {
   BODY_REGION_LABELS,
   exercisesByRegion,
 } from "../../data/prescriptionExercises";
+import { ExercisePlanEditor } from "./ExercisePlanEditor";
+import {
+  getActivePatientId,
+  setActivePatientId,
+  subscribeExercisePlans,
+} from "../../data/patientExercisePlans";
+
+/** 訂閱目前患者端展示的病患 ID */
+function useActivePatientId(): string {
+  return useSyncExternalStore(
+    (listener) => subscribeExercisePlans(listener) as unknown as () => void,
+    () => getActivePatientId()
+  );
+}
 
 interface Patient {
   id: string;
@@ -729,27 +749,48 @@ function FullReportDialog({
     patient.progress.reduce((sum, value) => sum + value, 0) / patient.progress.length
   );
   const profile = getPatientProfile(patient.id);
+  const analytics = getPatientAnalytics(patient.id);
+  const regions = regionsForPatient(patient.assignedExerciseIds);
+
+  const clinicalNotes =
+    patient.status === "注意"
+      ? [
+          "依從率偏低或趨勢下滑，建議主動電話關懷並檢視處方難度。",
+          "評估疼痛指數與動作品質是否影響訓練意願。",
+          "下次回診前請家屬協助督促每日訓練紀錄。",
+        ]
+      : patient.compliance >= 90
+        ? [
+            "訓練表現優異，可逐步增加阻力或進階動作。",
+            "維持現有頻率，持續監測各部位恢復雷達弱項。",
+            "回診時評估是否可進入下一復健階段。",
+          ]
+        : [
+            "維持現有訓練頻率，優先提升弱項動作品質。",
+            "若依從率連續 3 天低於 60%，建議安排主動關懷。",
+            "下次回診前確認疼痛與關節活動度變化。",
+          ];
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="sm:max-w-4xl rounded-3xl border-sky-100 p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-[1120px] rounded-3xl border-sky-100 p-0 overflow-hidden">
         <div className="bg-gradient-to-r from-sky-500 to-blue-500 px-6 py-5 text-white">
           <DialogHeader className="text-left">
             <DialogTitle className="text-2xl" style={{ fontWeight: 800 }}>
               {patient.name} 完整報告
             </DialogTitle>
             <DialogDescription className="text-sky-50">
-              匯整近 7 週依從率、目前處方與回診重點
+              匯整 KPI、訓練趨勢、疼痛與部位恢復評估 · 與家屬端監護總覽同源資料
             </DialogDescription>
           </DialogHeader>
         </div>
 
-        <div className="px-6 py-5 max-h-[70vh] overflow-y-auto space-y-5">
-          <div className="grid grid-cols-4 gap-3">
+        <div className="px-6 py-5 max-h-[82vh] overflow-y-auto space-y-5">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
               { label: "目前依從率", value: `${patient.compliance}%`, tone: "text-sky-600" },
               { label: "7 週平均", value: `${avgProgress}%`, tone: "text-blue-600" },
-              { label: "指派動作", value: `${assigned.length} 項`, tone: "text-emerald-600" },
+              { label: "動作品質", value: `${analytics.qualityAvg} 分`, tone: "text-emerald-600" },
               { label: "下次回診", value: patient.nextAppt, tone: "text-amber-600" },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
@@ -761,21 +802,42 @@ function FullReportDialog({
             ))}
           </div>
 
-          <div className="grid grid-cols-[1.15fr_0.85fr] gap-4">
-            <div className="rounded-2xl border border-slate-100 bg-white p-4">
+          <PatientAnalyticsPanel analytics={analytics} theme="doctor" layout="compact" />
+
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4">
+            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
               <h3 className="text-slate-800 text-sm mb-3" style={{ fontWeight: 700 }}>
-                依從率趨勢摘要
+                病患摘要
               </h3>
-              <div className="space-y-3">
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <p className="text-slate-700"><span className="text-slate-400">診斷：</span>{patient.diagnosis}</p>
+                <p className="text-slate-700"><span className="text-slate-400">階段：</span>{patient.phase}</p>
+                <p className="text-slate-700"><span className="text-slate-400">狀態：</span>{patient.status}</p>
+                <p className="text-slate-700"><span className="text-slate-400">最近訓練：</span>{patient.lastSession}</p>
+                {profile && (
+                  <>
+                    <p className="text-slate-700"><span className="text-slate-400">科別：</span>{profile.department}</p>
+                    <p className="text-slate-700"><span className="text-slate-400">病歷號：</span>{profile.medicalRecordNo}</p>
+                    <p className="text-slate-700 col-span-2"><span className="text-slate-400">過敏史：</span>{profile.allergies ?? "無"}</p>
+                  </>
+                )}
+                <p className="text-slate-700 col-span-2">
+                  <span className="text-slate-400">訓練部位：</span>
+                  {regions.map((r) => BODY_REGION_LABELS[r]).join("、")}
+                </p>
+              </div>
+
+              <h4 className="text-slate-600 text-xs mt-4 mb-2" style={{ fontWeight: 700 }}>
+                7 週依從率走勢
+              </h4>
+              <div className="space-y-2">
                 {patient.progress.map((value, idx) => (
                   <div key={idx}>
-                    <div className="flex items-center justify-between text-xs mb-1">
+                    <div className="flex items-center justify-between text-xs mb-0.5">
                       <span className="text-slate-500">第 {idx + 1} 週</span>
-                      <span className="text-slate-800" style={{ fontWeight: 700 }}>
-                        {value}%
-                      </span>
+                      <span className="text-slate-800" style={{ fontWeight: 700 }}>{value}%</span>
                     </div>
-                    <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
+                    <div className="h-1.5 rounded-full bg-white overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
                           value >= 80 ? "bg-emerald-400" : value >= 60 ? "bg-amber-400" : "bg-rose-400"
@@ -788,48 +850,40 @@ function FullReportDialog({
               </div>
             </div>
 
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+            <div className="rounded-2xl border border-slate-100 bg-white p-4">
               <h3 className="text-slate-800 text-sm mb-3" style={{ fontWeight: 700 }}>
-                病患摘要
+                目前處方與臨床建議
               </h3>
-              <div className="space-y-2 text-sm">
-                <p className="text-slate-700"><span className="text-slate-400">診斷：</span>{patient.diagnosis}</p>
-                <p className="text-slate-700"><span className="text-slate-400">階段：</span>{patient.phase}</p>
-                {profile && (
-                  <>
-                    <p className="text-slate-700"><span className="text-slate-400">科別：</span>{profile.department}</p>
-                    <p className="text-slate-700"><span className="text-slate-400">主治：</span>{profile.attendingPhysician}</p>
-                  </>
-                )}
-                <p className="text-slate-700"><span className="text-slate-400">最近訓練：</span>{patient.lastSession}</p>
-                <p className="text-slate-700"><span className="text-slate-400">風險提醒：</span>{patient.status}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-100 bg-white p-4">
-            <h3 className="text-slate-800 text-sm mb-3" style={{ fontWeight: 700 }}>
-              目前處方與建議
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
                 {assigned.map((exercise) => (
-                  <div key={exercise.id} className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2">
-                    <p className="text-slate-800 text-sm" style={{ fontWeight: 700 }}>
-                      {exercise.name}
-                    </p>
-                    <p className="text-slate-500 text-xs mt-1">{exercise.setsReps}</p>
+                  <div key={exercise.id} className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-slate-800 text-sm" style={{ fontWeight: 700 }}>
+                        {exercise.name}
+                      </p>
+                      <p className="text-slate-500 text-xs mt-0.5">{exercise.setsReps}</p>
+                    </div>
+                    <span
+                      className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
+                      style={{
+                        background: `${REGION_COLORS[exercise.region]}22`,
+                        color: REGION_COLORS[exercise.region],
+                        fontWeight: 600,
+                      }}
+                    >
+                      {BODY_REGION_LABELS[exercise.region]}
+                    </span>
                   </div>
                 ))}
               </div>
-              <div className="rounded-xl bg-sky-50 border border-sky-100 px-4 py-3">
+              <div className="rounded-xl bg-sky-50 border border-sky-100 px-4 py-3 mt-3">
                 <p className="text-sky-700 text-sm" style={{ fontWeight: 700 }}>
                   醫師建議
                 </p>
-                <ul className="mt-2 space-y-2 text-sm text-slate-700 list-disc pl-5">
-                  <li>維持現有訓練頻率，優先提升弱項動作品質。</li>
-                  <li>若依從率連續 3 天低於 60%，建議安排主動關懷。</li>
-                  <li>下次回診前確認疼痛與關節活動度變化。</li>
+                <ul className="mt-2 space-y-1.5 text-sm text-slate-700 list-disc pl-5">
+                  {clinicalNotes.map((note) => (
+                    <li key={note}>{note}</li>
+                  ))}
                 </ul>
               </div>
             </div>
@@ -1009,6 +1063,8 @@ function PatientDetailPanel({
     week: `W${i + 1}`,
     compliance: v,
   }));
+  const activePatientId = useActivePatientId();
+  const isActiveOnPatientApp = activePatientId === patient.id;
 
   return (
     <div className="w-[360px] portal-detail-panel flex-shrink-0 flex flex-col bg-white rounded-2xl border border-sky-100 shadow-sm overflow-hidden self-stretch">
@@ -1053,6 +1109,13 @@ function PatientDetailPanel({
       </div>
 
       <div className="p-3 space-y-3 overflow-y-auto flex-1 flex flex-col min-h-0">
+        {patient.id === DEFAULT_PATIENT_ID && (
+          <>
+            <TodayLiveFeed variant="doctor" />
+            <DailyRevealStatusCard variant="doctor" compact />
+          </>
+        )}
+
         <div className="grid grid-cols-2 gap-2">
           {[
             { label: "依從率", value: `${patient.compliance}%`, icon: Activity, color: "text-sky-500" },
@@ -1079,6 +1142,8 @@ function PatientDetailPanel({
           <h3 className="text-slate-700 text-sm mb-2">目前指派動作</h3>
           <PatientAssignedPreview patient={patient} embedded />
         </div>
+
+        <ExercisePlanEditor patientId={patient.id} patientName={patient.name} />
 
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
           <h3 className="text-slate-700 text-sm mb-2">7 週依從率趨勢</h3>
@@ -1122,6 +1187,25 @@ function PatientDetailPanel({
             <Bell className="w-4 h-4" />
             <span>設定提醒通知</span>
           </button>
+          <button
+            onClick={() => {
+              if (isActiveOnPatientApp) return;
+              setActivePatientId(patient.id);
+              toast.success(`已同步至患者端`, {
+                description: `患者端現在顯示 ${patient.name} 的個人化處方與訓練參數。`,
+              });
+            }}
+            disabled={isActiveOnPatientApp}
+            className={`w-full py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors border ${
+              isActiveOnPatientApp
+                ? "border-emerald-200 bg-emerald-50 text-emerald-600 cursor-default"
+                : "border-slate-200 text-slate-600 hover:bg-slate-50"
+            }`}
+            aria-label={isActiveOnPatientApp ? "患者端展示中" : "同步到患者端"}
+          >
+            <MonitorSmartphone className="w-4 h-4" />
+            <span>{isActiveOnPatientApp ? "患者端展示中 ✓" : "同步到患者端"}</span>
+          </button>
         </div>
       </div>
     </div>
@@ -1147,6 +1231,7 @@ export function DoctorPortal() {
 
   const selectedPatient = patients.find((p) => p.id === selectedPatientId) ?? null;
   const profilePatient = selectedPatient ? getPatientProfile(selectedPatient.id) : undefined;
+  const activePatientId = useActivePatientId();
   const departmentOptions = useMemo(
     () =>
       Array.from(
@@ -1473,6 +1558,12 @@ export function DoctorPortal() {
                               {patient.name}
                             </span>
                             <span className="text-slate-400 text-sm flex-shrink-0">{patient.age}歲</span>
+                            {patient.id === activePatientId && (
+                              <span className="flex items-center gap-1 text-[10px] text-teal-600 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ fontWeight: 700 }}>
+                                <MonitorSmartphone className="w-3 h-3" />
+                                患者端
+                              </span>
+                            )}
                           </div>
                           <span className={`px-2 py-0.5 rounded-md text-xs border flex-shrink-0 ${STATUS_COLORS[patient.status]}`}>
                             {patient.status}

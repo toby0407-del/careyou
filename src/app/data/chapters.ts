@@ -169,6 +169,48 @@ const LEVEL_NAME_POOL: Record<WorldKind, string[]> = {
   "space-station": ["零重力伸展", "艙室深蹲", "軌道平衡", "星港拉伸", "復健核心", "船塢抬腿", "艦橋扭轉", "太空呼吸", "指揮屈膝", "星港終章"],
 };
 
+const DEMO_MEDIA_POOL: Exercise["demoMedia"][] = [
+  {
+    type: "image",
+    url: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&h=500&fit=crop",
+    alt: "下肢屈伸示意",
+  },
+  {
+    type: "image",
+    url: "https://images.unsplash.com/photo-1516307365426-bea5f780b4ad?w=800&h=500&fit=crop",
+    alt: "踝關節活動示意",
+  },
+  {
+    type: "image",
+    url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=500&fit=crop",
+    alt: "核心訓練示意",
+  },
+  {
+    type: "image",
+    url: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&h=500&fit=crop",
+    alt: "腹部訓練示意",
+  },
+  {
+    type: "image",
+    url: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800&h=500&fit=crop",
+    alt: "肩部訓練示意",
+  },
+  {
+    type: "image",
+    url: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&h=500&fit=crop",
+    alt: "上肢活動示意",
+  },
+];
+
+const DEMO_TIPS_POOL: string[][] = [
+  ["保持身體穩定，動作緩慢進行", "注意呼吸節奏，不要憋氣", "幅度以不引起疼痛為準"],
+  ["單側完成後再換邊", "旋轉或活動時避免彈震式拉扯", "感受關節活動範圍即可"],
+  ["吐氣時用力，吸氣時放鬆", "核心收緊保護下背", "頂點可短暫停留 1–2 秒"],
+  ["腹部輕收即可，不需過度用力", "保持頸部與肩膀放鬆", "每次收縮維持數秒再放鬆"],
+  ["肩膀下沉，避免聳肩", "手臂抬起至水平或舒適高度", "身體不要前後傾斜"],
+  ["前臂支撐穩定，只活動目標關節", "上下活動皆需緩慢控制", "遇到阻力即停止"],
+];
+
 function buildLevelId(chapterId: string, islandId: string, n: number) {
   return `${chapterId}__${islandId}__lv${String(n).padStart(2, "0")}`;
 }
@@ -188,6 +230,7 @@ export function generateAllChapterExercises(): Exercise[] {
         globalLevel += 1;
         const progress = defaultProgress();
         const pose = POSE_TEMPLATES[(globalLevel - 1) % POSE_TEMPLATES.length];
+        const templateIndex = (globalLevel - 1) % POSE_TEMPLATES.length;
         const difficulty = Math.min(3, Math.ceil(i / 3.5)) as 1 | 2 | 3;
         out.push({
           id: buildLevelId(ch.id, island.id, i),
@@ -202,6 +245,8 @@ export function generateAllChapterExercises(): Exercise[] {
           repsPerSet: 10 + (i % 6) * 2,
           instruction: `在${island.name}完成第 ${i} 個復健副本，保持動作穩定與呼吸節奏。`,
           level: globalLevel,
+          demoMedia: DEMO_MEDIA_POOL[templateIndex],
+          demoTips: DEMO_TIPS_POOL[templateIndex],
           pose,
         });
       }

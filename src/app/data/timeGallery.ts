@@ -129,6 +129,20 @@ export function appendGalleryPhoto(photo: Omit<GalleryPhoto, "id" | "syncedAt">)
   return newPhoto;
 }
 
+/** 移除使用者上傳的照片（內建示範照片不能刪） */
+export function removeGalleryPhoto(id: string) {
+  const stored: GalleryPhoto[] = JSON.parse(localStorage.getItem(GALLERY_STORAGE_KEY) || "[]");
+  localStorage.setItem(
+    GALLERY_STORAGE_KEY,
+    JSON.stringify(stored.filter((p) => p.id !== id))
+  );
+  window.dispatchEvent(new Event("time-gallery-updated"));
+}
+
+export function isUploadedPhoto(photo: GalleryPhoto): boolean {
+  return photo.imageUrl.startsWith("data:");
+}
+
 /** Group photos by year-month for timeline */
 export function groupPhotosByMonth(photos: GalleryPhoto[]) {
   const groups: Record<string, GalleryPhoto[]> = {};

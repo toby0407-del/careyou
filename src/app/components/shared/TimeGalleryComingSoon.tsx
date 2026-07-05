@@ -1,5 +1,7 @@
 import { motion } from "motion/react";
 import { Images, Sparkles, Clock, Construction } from "lucide-react";
+import { RehabCompanion } from "../patient/RehabCompanion";
+import { companionByTab } from "../../data/companionMessages";
 
 interface TimeGalleryComingSoonProps {
   variant: "patient" | "family";
@@ -57,6 +59,18 @@ export function TimeGalleryComingSoon({
         >
           <Construction className="w-3.5 h-3.5" />
           待開發
+        </div>
+
+        <div className="mb-6 flex justify-center">
+          <RehabCompanion
+            pose={companionByTab.gallery.pose}
+            bubble={companionByTab.gallery.bubble}
+            title={companionByTab.gallery.title}
+            message={companionByTab.gallery.message}
+            layout="vertical"
+            variant="card"
+            size={160}
+          />
         </div>
 
         <h2 className="text-2xl text-slate-800 mb-2" style={{ fontWeight: 800 }}>

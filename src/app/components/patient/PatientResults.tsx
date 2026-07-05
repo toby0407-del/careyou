@@ -25,14 +25,16 @@ import {
   Dumbbell,
 } from "lucide-react";
 import {
-  dailyResults,
-  getDayResult,
   getCompletionRate,
   getCompletionColor,
   completionLegend,
   type DayResult,
 } from "../../data/dailyResults";
-import { allExercises } from "../../data/patientExercises";
+import {
+  useLiveDailyResults,
+  useLiveExercises,
+  useLiveStreak,
+} from "../../hooks/useLiveProgress";
 import {
   ResponsiveContainer,
   BarChart,
@@ -206,11 +208,22 @@ function EmptyDetailPanel() {
 }
 
 export function PatientResults() {
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 6, 1));
-  const [selectedDate, setSelectedDate] = useState<string | null>("2026-07-01");
+  const dailyResults = useLiveDailyResults();
+  const liveExercises = useLiveExercises();
+  const streakDays = useLiveStreak();
+  const todayDate = useMemo(() => new Date(), []);
+  const [currentMonth, setCurrentMonth] = useState(startOfMonth(todayDate));
+  const [selectedDate, setSelectedDate] = useState<string | null>(() => {
+    const latest = [...dailyResults].sort((a, b) => b.date.localeCompare(a.date))[0];
+    return latest?.date ?? null;
+  });
 
-  const completedCount = allExercises.filter((e) => e.completed).length;
-  const totalStars = allExercises.filter((e) => e.completed).reduce((s, e) => s + e.stars, 0);
+  const completedCount = liveExercises.filter((e) => e.completed).length;
+  const totalStars = liveExercises
+    .filter((e) => e.completed)
+    .reduce((s, e) => s + e.stars, 0);
+
+  const getDayResult = (date: string) => dailyResults.find((d) => d.date === date);
 
   const calendarDays = useMemo(() => {
     const start = startOfMonth(currentMonth);
@@ -233,12 +246,13 @@ export function PatientResults() {
       monthDays.reduce((s, d) => s + d.accuracy, 0) / monthDays.length
     );
     return { trained: monthDays.length, avgRate, avgQuality };
-  }, [currentMonth]);
+  }, [currentMonth, dailyResults]);
 
   return (
-    <div className="patient-results-ui h-full flex gap-3 overflow-hidden">
+    <div className="patient-results-ui h-full flex gap-2 overflow-hidden">
+      <div className="flex-1 min-w-0 flex gap-3 overflow-hidden">
       {/* Left: Calendar */}
-      <div className="flex-[3] flex flex-col min-w-0 bg-white rounded-2xl border border-slate-100 p-4 overflow-hidden">
+      <div className="flex-[3] flex flex-col min-w-0 bg-white/85 rounded-2xl border border-emerald-100 p-4 overflow-hidden shadow-sm">
         {/* Month nav */}
         <div className="flex items-center justify-between mb-3 flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -303,7 +317,7 @@ export function PatientResults() {
             const rate = result ? getCompletionRate(result) : 0;
             const color = getCompletionColor(rate);
             const isSelected = selectedDate === dateStr;
-            const isToday = isSameDay(date, new Date(2026, 6, 1));
+            const isToday = isSameDay(date, todayDate);
             const hasData = !!result;
 
             return (
@@ -350,19 +364,24 @@ export function PatientResults() {
         {/* Bottom summary strip */}
         <div className="grid grid-cols-4 gap-2 mt-3 flex-shrink-0">
           {[
-            { icon: TrendingUp, label: "連續天數", value: "12 天", color: "text-blue-500" },
-            { icon: Target, label: "動作品質", value: "88%", color: "text-teal-500" },
+            { icon: TrendingUp, label: "連續天數", value: `${streakDays} 天`, color: "text-blue-500" },
+            {
+              icon: Target,
+              label: "動作品質",
+              value: monthStats ? `${monthStats.avgQuality}%` : "--",
+              color: "text-teal-500",
+            },
             { icon: Star, label: "總星數", value: `${totalStars} ★`, color: "text-amber-500" },
             {
               icon: Dumbbell,
               label: "完成項目",
-              value: `${completedCount}/${allExercises.length}`,
+              value: `${completedCount}/${liveExercises.length}`,
               color: "text-emerald-500",
             },
           ].map((s) => {
             const Icon = s.icon;
             return (
-              <div key={s.label} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-slate-50">
+              <div key={s.label} className="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-emerald-50/70">
                 <Icon className={`w-3.5 h-3.5 ${s.color}`} />
                 <div>
                   <p className="text-xs text-slate-800" style={{ fontWeight: 700 }}>
@@ -377,7 +396,7 @@ export function PatientResults() {
       </div>
 
       {/* Right: Detail panel */}
-      <div className="flex-[2] min-w-[280px] bg-white rounded-2xl border border-slate-100 p-4 overflow-hidden">
+      <div className="flex-[2] min-w-[280px] bg-white/85 rounded-2xl border border-emerald-100 p-4 overflow-hidden shadow-sm">
         <AnimatePresence mode="wait">
           {selectedDay ? (
             <DayDetailPanel key={selectedDay.date} day={selectedDay} />
@@ -393,6 +412,7 @@ export function PatientResults() {
             </motion.div>
           )}
         </AnimatePresence>
+      </div>
       </div>
     </div>
   );

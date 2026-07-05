@@ -122,17 +122,6 @@ export interface RepTracker {
   isStandard: boolean;
 }
 
-export function createRepTracker(): RepTracker {
-  return {
-    phase: "idle",
-    validReps: 0,
-    invalidReps: 0,
-    lastAngle: null,
-    feedback: "請面向鏡頭，準備開始動作",
-    isStandard: false,
-  };
-}
-
 export function updateRepTracker(
   tracker: RepTracker,
   angle: number | null,
@@ -184,25 +173,126 @@ export function updateRepTracker(
   return next;
 }
 
+export const HAND_RAISE_HOLD_MS = 1500;
+
+export interface HandRaiseTracker {
+  holdingMs: number;
+  side: "left" | "right" | null;
+}
+
+export function createHandRaiseTracker(): HandRaiseTracker {
+  return { holdingMs: 0, side: null };
+}
+
+export function detectHandRaised(
+  keypoints: Keypoint[]
+): { raised: boolean; side: "left" | "right" | null } {
+  const minScore = 0.25;
+  const shoulderOffset = 30;
+
+  for (const side of ["left", "right"] as const) {
+    const shoulder = getKeypoint(keypoints, `${side}_shoulder`, minScore);
+    const wrist = getKeypoint(keypoints, `${side}_wrist`, minScore);
+    const elbow = getKeypoint(keypoints, `${side}_elbow`, minScore);
+    if (!shoulder || !wrist) continue;
+
+    const wristAboveShoulder = wrist.y < shoulder.y - shoulderOffset;
+    const armExtended = !elbow || wrist.y <= elbow.y + 20;
+
+    if (wristAboveShoulder && armExtended) {
+      return { raised: true, side };
+    }
+  }
+
+  return { raised: false, side: null };
+}
+
+export function updateHandRaiseTracker(
+  tracker: HandRaiseTracker,
+  keypoints: Keypoint[],
+  deltaMs: number
+): HandRaiseTracker {
+  const { raised, side } = detectHandRaised(keypoints);
+  if (!raised || !side) {
+    return { holdingMs: 0, side: null };
+  }
+
+  return {
+    holdingMs: tracker.side === side ? tracker.holdingMs + deltaMs : deltaMs,
+    side,
+  };
+}
+
+export function createRepTracker(): RepTracker {
+  return {
+    phase: "idle",
+    validReps: 0,
+    invalidReps: 0,
+    lastAngle: null,
+    feedback: "請面向鏡頭，準備開始動作",
+    isStandard: false,
+  };
+}
+
 function kpByIndex(keypoints: Keypoint[], idx: number, minScore = 0.15): Point2D | null {
   const kp = keypoints[idx];
   if (!kp || (kp.score ?? 0) < minScore) return null;
   return { x: kp.x, y: kp.y };
 }
 
-/** 若模型回傳 0–1 正規化座標，轉成像素座標 */
-function scaleKeypointsToPixels(keypoints: Keypoint[], width: number, height: number): Keypoint[] {
-  if (keypoints.length === 0) return keypoints;
-  const visible = keypoints.filter((k) => (k.score ?? 0) > 0.1);
-  if (visible.length === 0) return keypoints;
+/** 若模型回傳 0–1 正規化或較小解析度座標，轉成影片像素座標 */
+export function prepareKeypointsForVideo(
+  keypoints: Keypoint[],
+  width: number,
+  height: number
+): Keypoint[] {
+  if (keypoints.length === 0 || width <= 0 || height <= 0) return keypoints;
+
+  const named = keypoints.map((k, i) => ({
+    ...k,
+    name: k.name ?? BLAZEPOSE_KEYPOINTS[i] ?? `kp_${i}`,
+  }));
+
+  const visible = named.filter((k) => (k.score ?? 0) > 0.05);
+  if (visible.length === 0) return named;
+
   const maxX = Math.max(...visible.map((k) => k.x));
   const maxY = Math.max(...visible.map((k) => k.y));
-  if (maxX > 1.5 || maxY > 1.5) return keypoints;
-  return keypoints.map((k) => ({
-    ...k,
-    x: k.x * width,
-    y: k.y * height,
-  }));
+  const minX = Math.min(...visible.map((k) => k.x));
+  const minY = Math.min(...visible.map((k) => k.y));
+
+  // 0–1 正規化座標
+  if (maxX <= 1.05 && maxY <= 1.05) {
+    return named.map((k) => ({
+      ...k,
+      x: k.x * width,
+      y: k.y * height,
+    }));
+  }
+
+  // 模型內部解析度（常見 192–256），需放大至影片尺寸
+  if (maxX <= 640 && maxY <= 640 && (maxX < width * 0.75 || maxY < height * 0.75)) {
+    const spanX = Math.max(maxX - minX, maxX);
+    const spanY = Math.max(maxY - minY, maxY);
+    const scaleX = width / spanX;
+    const scaleY = height / spanY;
+    const scale = Math.min(scaleX, scaleY);
+    if (scale > 1.05) {
+      const offsetX = (width - spanX * scale) / 2;
+      const offsetY = (height - spanY * scale) / 2;
+      return named.map((k) => ({
+        ...k,
+        x: (k.x - minX) * scale + offsetX,
+        y: (k.y - minY) * scale + offsetY,
+      }));
+    }
+  }
+
+  return named;
+}
+
+function scaleKeypointsToPixels(keypoints: Keypoint[], width: number, height: number): Keypoint[] {
+  return prepareKeypointsForVideo(keypoints, width, height);
 }
 
 function jointColor(name?: string): { fill: string; stroke: string; radius: number } {
@@ -239,14 +329,17 @@ export function drawPoseSkeleton(
   ctx: CanvasRenderingContext2D,
   keypoints: Keypoint[],
   width: number,
-  height: number
+  height: number,
+  options?: { mirror?: boolean }
 ) {
   ctx.clearRect(0, 0, width, height);
   if (keypoints.length === 0) return;
 
   const scaled = scaleKeypointsToPixels(keypoints, width, height);
+  const mirror = options?.mirror ?? true;
+  const mapX = (x: number) => (mirror ? width - x : x);
   const dense = isDenseModel(scaled);
-  const minScore = 0.15;
+  const minScore = 0.1;
 
   if (dense) {
     for (const [ai, bi] of BLAZEPOSE_PAIRS) {
@@ -256,10 +349,10 @@ export function drawPoseSkeleton(
       const nameA = scaled[ai]?.name;
       const isFace = nameA && FACE_NAMES.has(nameA);
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
+      ctx.moveTo(mapX(a.x), a.y);
+      ctx.lineTo(mapX(b.x), b.y);
       ctx.strokeStyle = isFace ? "rgba(167, 243, 208, 0.85)" : "rgba(52, 211, 153, 0.95)";
-      ctx.lineWidth = isFace ? 2 : 4;
+      ctx.lineWidth = isFace ? 2.5 : 5;
       ctx.lineCap = "round";
       ctx.shadowColor = "#34d399";
       ctx.shadowBlur = isFace ? 4 : 8;
@@ -270,7 +363,7 @@ export function drawPoseSkeleton(
     for (const kp of scaled) {
       if ((kp.score ?? 0) < minScore) continue;
       const { fill, stroke, radius } = jointColor(kp.name);
-      drawJointDot(ctx, kp.x, kp.y, radius + 2, fill, stroke);
+      drawJointDot(ctx, mapX(kp.x), kp.y, radius + 2, fill, stroke);
     }
   } else {
     for (const [from, to] of COCO_CONNECTIONS) {
@@ -278,10 +371,10 @@ export function drawPoseSkeleton(
       const b = getKeypoint(scaled, to, minScore);
       if (!a || !b) continue;
       ctx.beginPath();
-      ctx.moveTo(a.x, a.y);
-      ctx.lineTo(b.x, b.y);
+      ctx.moveTo(mapX(a.x), a.y);
+      ctx.lineTo(mapX(b.x), b.y);
       ctx.strokeStyle = "rgba(52, 211, 153, 0.95)";
-      ctx.lineWidth = 5;
+      ctx.lineWidth = 6;
       ctx.lineCap = "round";
       ctx.shadowColor = "#34d399";
       ctx.shadowBlur = 8;
@@ -291,7 +384,7 @@ export function drawPoseSkeleton(
 
     for (const kp of scaled) {
       if ((kp.score ?? 0) < minScore) continue;
-      drawJointDot(ctx, kp.x, kp.y, 8, "#10b981", "#ecfdf5");
+      drawJointDot(ctx, mapX(kp.x), kp.y, 9, "#10b981", "#ecfdf5");
     }
   }
 }

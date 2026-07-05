@@ -28,6 +28,16 @@ export const categories = [
         repsPerSet: 15,
         instruction: "緩慢彎曲膝蓋至90度，然後伸直，保持背部挺直",
         level: 1,
+        demoMedia: {
+          type: "image" as const,
+          url: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&h=500&fit=crop",
+          alt: "坐姿膝關節屈伸示意",
+        },
+        demoTips: [
+          "坐姿或扶椅背站立，單腳緩慢彎曲至約 90 度",
+          "膝蓋朝向正前方，不要內扣或外撇",
+          "伸直時避免鎖死關節，感受大腿前後側肌群",
+        ],
         pose: { joint: "leftKnee" as const, flexedAngle: 90, extendedAngle: 165, tolerance: 15 },
       },
       {
@@ -43,6 +53,16 @@ export const categories = [
         repsPerSet: 20,
         instruction: "以腳踝為軸心，順時針與逆時針各旋轉，動作緩慢穩定",
         level: 2,
+        demoMedia: {
+          type: "image" as const,
+          url: "https://images.unsplash.com/photo-1516307365426-bea5f780b4ad?w=800&h=500&fit=crop",
+          alt: "踝關節旋轉示意",
+        },
+        demoTips: [
+          "坐姿將腳踝懸空，以腳跟為支點畫圓",
+          "順時針與逆時針各做一半次數",
+          "旋轉幅度以不引起疼痛為準",
+        ],
         pose: { joint: "leftKnee" as const, flexedAngle: 100, extendedAngle: 160, tolerance: 20 },
       },
     ],
@@ -71,6 +91,16 @@ export const categories = [
         repsPerSet: 12,
         instruction: "平躺屈膝，雙腳踩地，臀部上抬至與身體成一直線，停留2秒",
         level: 3,
+        demoMedia: {
+          type: "image" as const,
+          url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=500&fit=crop",
+          alt: "橋式運動示意",
+        },
+        demoTips: [
+          "平躺屈膝，雙腳與臀同寬踩穩地面",
+          "吐氣時將臀部上抬至肩、髖、膝呈一直線",
+          "頂點停留 2 秒後緩慢下放",
+        ],
         pose: { joint: "leftHip" as const, flexedAngle: 140, extendedAngle: 175, tolerance: 12 },
       },
       {
@@ -86,6 +116,16 @@ export const categories = [
         repsPerSet: 15,
         instruction: "深吸一口氣，吐氣時收縮腹部肌群，保持5秒後放鬆",
         level: 4,
+        demoMedia: {
+          type: "image" as const,
+          url: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&h=500&fit=crop",
+          alt: "腹部收縮示意",
+        },
+        demoTips: [
+          "仰臥屈膝，雙手自然放在腹部",
+          "吐氣時將肚臍向脊椎方向輕輕內收",
+          "保持 5 秒後吸氣放鬆，避免憋氣",
+        ],
         pose: { joint: "leftHip" as const, flexedAngle: 130, extendedAngle: 170, tolerance: 18 },
       },
     ],
@@ -114,6 +154,16 @@ export const categories = [
         repsPerSet: 10,
         instruction: "手臂由側邊緩慢抬起至水平位置，保持肩膀放鬆不聳肩",
         level: 5,
+        demoMedia: {
+          type: "image" as const,
+          url: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800&h=500&fit=crop",
+          alt: "肩關節外展示意",
+        },
+        demoTips: [
+          "身體站直，手臂貼於身側",
+          "掌心向下，將手臂緩慢抬至與肩同高",
+          "抬至水平即可，避免聳肩或身體側傾",
+        ],
         pose: { joint: "leftShoulder" as const, flexedAngle: 30, extendedAngle: 85, tolerance: 12 },
       },
       {
@@ -129,6 +179,16 @@ export const categories = [
         repsPerSet: 20,
         instruction: "前臂平放，緩慢彎曲手腕向上再向下，範圍不超過疼痛角度",
         level: 6,
+        demoMedia: {
+          type: "image" as const,
+          url: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&h=500&fit=crop",
+          alt: "手腕屈伸示意",
+        },
+        demoTips: [
+          "前臂平放於桌面或大腿上，手腕懸空",
+          "緩慢向上彎曲手腕，再向下回到中立",
+          "動作範圍以不引起疼痛為限",
+        ],
         pose: { joint: "leftShoulder" as const, flexedAngle: 20, extendedAngle: 70, tolerance: 15 },
       },
     ],
@@ -156,6 +216,36 @@ export function isExerciseUnlocked(id: string): boolean {
   const index = allExercises.findIndex((e) => e.id === id);
   if (index < 0) return false;
   return getLevelStatus(allExercises[index], index) !== "locked";
+}
+
+export function getTodayPlanSummary() {
+  const completed = allExercises.filter((e) => e.completed).length;
+  const pending = allExercises.filter((e) => !e.completed);
+  const estimatedMinutes = pending.reduce((sum, exercise) => {
+    const match = exercise.duration.match(/(\d+)/);
+    return sum + (match ? Number(match[1]) : 10);
+  }, 0);
+
+  return {
+    total: allExercises.length,
+    completed,
+    remaining: pending.length,
+    estimatedMinutes,
+    pendingNames: pending.map((e) => e.name),
+  };
+}
+
+const JOINT_LABELS: Record<Exercise["pose"]["joint"], string> = {
+  leftKnee: "左膝",
+  rightKnee: "右膝",
+  leftShoulder: "左肩",
+  rightShoulder: "右肩",
+  leftHip: "左髖",
+  rightHip: "右髖",
+};
+
+export function getJointLabel(joint: Exercise["pose"]["joint"]): string {
+  return JOINT_LABELS[joint];
 }
 
 export const weeklyResults = [

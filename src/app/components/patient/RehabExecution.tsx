@@ -16,16 +16,32 @@ import {
   Target,
   Lock,
 } from "lucide-react";
+import confetti from "canvas-confetti";
 import { getExerciseById, allExercises, getLevelStatus } from "../../data/patientExercises";
+import { useResolvedExercise } from "../../hooks/useResolvedExercise";
 import { getAppDisplayName } from "../../brand";
 import { appendCorridorEvent } from "../../data/timeCorridor";
 import { appendGalleryPhoto } from "../../data/timeGallery";
+import { recordSessionComplete, withLiveProgress } from "../../data/progressStore";
+import {
+  speak,
+  speakCount,
+  stopSpeaking,
+  getVoiceEnabled,
+  setVoiceEnabled as persistVoiceEnabled,
+} from "../../lib/speech";
 import { usePoseDetection } from "../../hooks/usePoseDetection";
+import { RehabDemoBriefing } from "./RehabDemoBriefing";
+import { RehabReadyOverlays, RehabReadyPanel } from "./RehabReadyGate";
+import { JointAngleGauge } from "./JointAngleGauge";
 import {
   getJointAngle,
   createRepTracker,
   updateRepTracker,
   drawPoseSkeleton,
+  createHandRaiseTracker,
+  updateHandRaiseTracker,
+  HAND_RAISE_HOLD_MS,
   type RepTracker,
 } from "../../utils/poseAnalysis";
 import { Switch } from "../ui/switch";
@@ -38,18 +54,29 @@ const VOICE_PROMPTS = [
   "再做幾次，你快完成了！",
 ];
 
+type RehabPhase = "demo" | "ready" | "training";
+
 export function RehabExecution() {
   const navigate = useNavigate();
   const { exerciseId } = useParams<{ exerciseId: string }>();
-  const exerciseIndex = allExercises.findIndex((e) => e.id === exerciseId);
-  const exercise =
-    exerciseIndex >= 0 ? allExercises[exerciseIndex] : getExerciseById("knee-flexion")!;
+  const resolvedExercise = useResolvedExercise(exerciseId ?? "knee-flexion");
+  const liveExercises = withLiveProgress(allExercises);
+  const exerciseIndex = liveExercises.findIndex((e) => e.id === exerciseId);
+  const fallback =
+    exerciseIndex >= 0 ? liveExercises[exerciseIndex] : getExerciseById("knee-flexion")!;
+  const exercise = resolvedExercise ?? fallback;
   const levelStatus =
-    exerciseIndex >= 0 ? getLevelStatus(exercise, exerciseIndex) : "active";
+    exerciseIndex >= 0
+      ? getLevelStatus(liveExercises[exerciseIndex], exerciseIndex, liveExercises)
+      : "active";
   const isLocked = levelStatus === "locked";
 
+  const [phase, setPhase] = useState<RehabPhase>("demo");
+  const [handRaiseProgress, setHandRaiseProgress] = useState(0);
+  const [readySide, setReadySide] = useState<"left" | "right" | null>(null);
+  const [detectedInFrame, setDetectedInFrame] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(() => getVoiceEnabled());
   const [currentSet, setCurrentSet] = useState(1);
   const [currentRep, setCurrentRep] = useState(0);
   const [validReps, setValidReps] = useState(0);
@@ -61,12 +88,30 @@ export function RehabExecution() {
   const [feedback, setFeedback] = useState("請面向鏡頭，準備開始動作");
   const [isStandard, setIsStandard] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
+  const [restSuggested, setRestSuggested] = useState(false);
+  const [sessionResult, setSessionResult] = useState<{
+    stars: 1 | 2 | 3;
+    quality: number;
+  } | null>(null);
 
   const repTrackerRef = useRef<RepTracker>(createRepTracker());
+  const handRaiseRef = useRef(createHandRaiseTracker());
+  const lastPoseTimeRef = useRef(performance.now());
+  const phaseRef = useRef<RehabPhase>("demo");
   const lastValidCountRef = useRef(0);
+  const lastInvalidCountRef = useRef(0);
   const syncedCompleteRef = useRef(false);
   const isPausedRef = useRef(isPaused);
   const currentSetRef = useRef(currentSet);
+  const voiceEnabledRef = useRef(voiceEnabled);
+  /** 跨組累計（品質評分用） */
+  const totalValidRef = useRef(0);
+  const totalInvalidRef = useRef(0);
+  /** 每次有效動作的時間戳（疲勞偵測用） */
+  const repTimesRef = useRef<number[]>([]);
+  const currentRepRef = useRef(0);
+  const restSuggestedRef = useRef(false);
+  const lastInvalidSpeakRef = useRef(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lastKeypointsRef = useRef<import("@tensorflow-models/pose-detection").Keypoint[]>([]);
@@ -74,11 +119,93 @@ export function RehabExecution() {
   useEffect(() => {
     isPausedRef.current = isPaused;
     currentSetRef.current = currentSet;
-  }, [isPaused, currentSet]);
+    phaseRef.current = phase;
+    voiceEnabledRef.current = voiceEnabled;
+  }, [isPaused, currentSet, phase, voiceEnabled]);
+
+  const speakIfOn = useCallback((text: string, interrupt = false) => {
+    if (voiceEnabledRef.current) speak(text, { interrupt });
+  }, []);
+
+  // 離開頁面時停止語音
+  useEffect(() => () => stopSpeaking(), []);
+
+  // 語音教練：動作講解（demo 進入時朗讀一次）
+  const demoSpokenRef = useRef(false);
+  useEffect(() => {
+    if (phase === "demo" && !demoSpokenRef.current && !isLocked) {
+      demoSpokenRef.current = true;
+      speakIfOn(
+        `${exercise.name}，共 ${exercise.sets} 組、每組 ${exercise.repsPerSet} 次。${exercise.instruction}。準備好後，請按「準備開始」。`
+      );
+    }
+  }, [phase, isLocked, exercise, speakIfOn]);
+
+  // 語音教練：就位指引
+  const readySpokenRef = useRef(false);
+  useEffect(() => {
+    if (phase === "ready" && !readySpokenRef.current) {
+      readySpokenRef.current = true;
+      speakIfOn("請站進畫面中央，讓鏡頭看到全身。舉起一隻手保持兩秒，訓練就會開始！", true);
+    }
+    if (phase !== "ready") readySpokenRef.current = false;
+  }, [phase, speakIfOn]);
+
+  /** 疲勞偵測：後段動作間隔明顯變慢 → 建議休息（每組最多提醒一次） */
+  const checkFatigue = useCallback(() => {
+    const times = repTimesRef.current;
+    if (restSuggestedRef.current || times.length < 6) return;
+    const intervals: number[] = [];
+    for (let i = 1; i < times.length; i++) intervals.push(times[i] - times[i - 1]);
+    const early = intervals.slice(0, 3);
+    const late = intervals.slice(-3);
+    const avg = (arr: number[]) => arr.reduce((s, x) => s + x, 0) / arr.length;
+    if (avg(late) > avg(early) * 1.7) {
+      restSuggestedRef.current = true;
+      setRestSuggested(true);
+      speakIfOn("我注意到你的動作變慢了，需要休息一下嗎？隨時可以按暫停，不用勉強。", true);
+      setTimeout(() => setRestSuggested(false), 8000);
+    }
+  }, [speakIfOn]);
 
   const onPose = useCallback(
     (keypoints: import("@tensorflow-models/pose-detection").Keypoint[]) => {
       lastKeypointsRef.current = keypoints;
+      const now = performance.now();
+      const deltaMs = now - lastPoseTimeRef.current;
+      lastPoseTimeRef.current = now;
+
+      if (phaseRef.current === "ready") {
+        const visibleCount = keypoints.filter((k) => (k.score ?? 0) >= 0.15).length;
+        setDetectedInFrame(visibleCount >= 5);
+
+        const tracker = updateHandRaiseTracker(handRaiseRef.current, keypoints, deltaMs);
+        handRaiseRef.current = tracker;
+        setHandRaiseProgress(tracker.holdingMs);
+        setReadySide(tracker.side);
+
+        if (tracker.holdingMs >= HAND_RAISE_HOLD_MS) {
+          handRaiseRef.current = createHandRaiseTracker();
+          repTrackerRef.current = createRepTracker();
+          lastValidCountRef.current = 0;
+          lastInvalidCountRef.current = 0;
+          totalValidRef.current = 0;
+          totalInvalidRef.current = 0;
+          repTimesRef.current = [];
+          currentRepRef.current = 0;
+          restSuggestedRef.current = false;
+          setHandRaiseProgress(0);
+          setReadySide(null);
+          setPhase("training");
+          speakIfOn(
+            `開始訓練！${exercise.name}，共 ${exercise.sets} 組、每組 ${exercise.repsPerSet} 次。${exercise.instruction}`,
+            true
+          );
+        }
+        return;
+      }
+
+      if (phaseRef.current !== "training") return;
 
       const angle = getJointAngle(keypoints, exercise.pose.joint);
       setJointAngle(angle);
@@ -90,38 +217,65 @@ export function RehabExecution() {
       setFeedback(tracker.feedback);
       setIsStandard(tracker.isStandard);
 
+      // 無效動作 — 累計並以語音提醒（節流）
+      if (tracker.invalidReps > lastInvalidCountRef.current) {
+        totalInvalidRef.current += tracker.invalidReps - lastInvalidCountRef.current;
+        lastInvalidCountRef.current = tracker.invalidReps;
+        const nowMs = performance.now();
+        if (nowMs - lastInvalidSpeakRef.current > 6000) {
+          lastInvalidSpeakRef.current = nowMs;
+          speakIfOn("這次幅度不足，不計入。放慢速度，再彎多一點。");
+        }
+      }
+
       if (tracker.validReps > lastValidCountRef.current) {
+        totalValidRef.current += tracker.validReps - lastValidCountRef.current;
         lastValidCountRef.current = tracker.validReps;
-        setCurrentRep((r) => {
-          const next = r + 1;
-          if (next >= exercise.repsPerSet) {
-            if (currentSetRef.current >= exercise.sets) {
-              setShowComplete(true);
-            } else {
-              setCurrentSet((s) => s + 1);
-              repTrackerRef.current = createRepTracker();
-              lastValidCountRef.current = 0;
-            }
-            return 0;
+        repTimesRef.current.push(performance.now());
+
+        const next = currentRepRef.current + 1;
+        if (next >= exercise.repsPerSet) {
+          currentRepRef.current = 0;
+          setCurrentRep(0);
+          if (currentSetRef.current >= exercise.sets) {
+            setShowComplete(true);
+          } else {
+            const finishedSet = currentSetRef.current;
+            setCurrentSet(finishedSet + 1);
+            repTrackerRef.current = createRepTracker();
+            lastValidCountRef.current = 0;
+            lastInvalidCountRef.current = 0;
+            repTimesRef.current = [];
+            restSuggestedRef.current = false;
+            speakIfOn(
+              `太棒了，第 ${finishedSet} 組完成！休息一下，準備第 ${finishedSet + 1} 組。`,
+              true
+            );
           }
-          return next;
-        });
-        setValidReps(tracker.validReps);
+        } else {
+          currentRepRef.current = next;
+          setCurrentRep(next);
+          if (voiceEnabledRef.current) speakCount(next);
+        }
+        setValidReps(totalValidRef.current);
+        checkFatigue();
       }
     },
-    [exercise]
+    [exercise, speakIfOn, checkFatigue]
   );
+
+  const poseDetectionEnabled = !showComplete && (phase === "ready" || phase === "training");
 
   const { cameraState, errorMessage, fps, engine, keypointTotal, activeKeypoints, videoLive, retry } =
     usePoseDetection({
-    enabled: !showComplete,
+    enabled: poseDetectionEnabled,
     videoRef,
     onPose,
   });
 
   // 獨立渲染迴圈 — 確保骨架即時疊加在鏡頭畫面上
   useEffect(() => {
-    if (!showSkeleton || cameraState !== "ready") return;
+    if (!showSkeleton || cameraState !== "ready" || phase === "demo") return;
 
     let raf = 0;
     const render = () => {
@@ -137,7 +291,7 @@ export function RehabExecution() {
         const ctx = canvas.getContext("2d");
         if (ctx) {
           if (lastKeypointsRef.current.length > 0) {
-            drawPoseSkeleton(ctx, lastKeypointsRef.current, vw, vh);
+            drawPoseSkeleton(ctx, lastKeypointsRef.current, vw, vh, { mirror: false });
           } else {
             ctx.clearRect(0, 0, vw, vh);
           }
@@ -148,7 +302,7 @@ export function RehabExecution() {
 
     raf = requestAnimationFrame(render);
     return () => cancelAnimationFrame(raf);
-  }, [showSkeleton, cameraState]);
+  }, [showSkeleton, cameraState, phase]);
 
   // 關閉骨架時清除畫布
   useEffect(() => {
@@ -160,28 +314,46 @@ export function RehabExecution() {
 
   // Timer
   useEffect(() => {
-    if (cameraState !== "ready" || isPaused) return;
+    if (phase !== "training" || cameraState !== "ready" || isPaused) return;
     const timer = setInterval(() => setElapsedSeconds((s) => s + 1), 1000);
     return () => clearInterval(timer);
-  }, [cameraState, isPaused]);
+  }, [phase, cameraState, isPaused]);
 
-  // Sync to 時光迴廊 (patient ↔ family)
+  // 訓練完成 — 品質評分、寫入進度（解鎖下一關）、同步時光迴廊、慶祝
   useEffect(() => {
     if (!showComplete || syncedCompleteRef.current) return;
     syncedCompleteRef.current = true;
-    const today = new Date().toISOString().slice(0, 10);
-    const quality = Math.min(100, 70 + validReps * 2);
 
+    const valid = totalValidRef.current;
+    const invalid = totalInvalidRef.current;
+    const attempts = Math.max(1, valid + invalid);
+    // 品質 = 標準動作比例（保底 55，滿分 100）
+    const quality = Math.max(55, Math.min(100, Math.round((valid / attempts) * 100)));
+    const stars: 1 | 2 | 3 = quality >= 90 ? 3 : quality >= 75 ? 2 : 1;
+    setSessionResult({ stars, quality });
+
+    // 進度寫入 → 關卡解鎖 / 月曆 / 里程碑 / 家屬端同步
+    recordSessionComplete({
+      exerciseId: exercise.id,
+      exerciseName: exercise.name,
+      stars,
+      quality,
+      validReps: valid,
+      invalidReps: invalid,
+      durationSec: elapsedSeconds,
+    });
+
+    const today = new Date().toISOString().slice(0, 10);
     appendCorridorEvent({
       date: today,
       title: `完成 ${exercise.name}`,
-      description: `關卡 ${exercise.level} 通關，標準動作 ${validReps} 次，用時 ${Math.floor(elapsedSeconds / 60)} 分鐘。`,
+      description: `關卡 ${exercise.level} 通關，標準動作 ${valid} 次，動作品質 ${quality} 分，用時 ${Math.max(1, Math.floor(elapsedSeconds / 60))} 分鐘。`,
       type: "training",
       exerciseName: exercise.name,
       quality,
       metrics: [
         { label: "動作品質", value: quality, unit: "分" },
-        { label: "標準次數", value: validReps, unit: "次" },
+        { label: "標準次數", value: valid, unit: "次" },
       ],
     });
 
@@ -189,23 +361,57 @@ export function RehabExecution() {
       category: "training",
       date: today,
       title: `${exercise.name} 通關紀念`,
-      caption: `今日完成 ${exercise.name} 訓練，標準動作 ${validReps} 次！`,
+      caption: `今日完成 ${exercise.name} 訓練，標準動作 ${valid} 次、品質 ${quality} 分，獲得 ${stars} 顆星！`,
       imageUrl: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=600&h=400&fit=crop",
       tags: [exercise.name, "通關"],
     });
-  }, [showComplete, exercise, validReps, elapsedSeconds]);
 
-  // Voice prompts
+    // 彩帶慶祝（尊重 reduced-motion）
+    confetti({
+      particleCount: 140,
+      spread: 80,
+      origin: { y: 0.6 },
+      colors: ["#14b8a6", "#34d399", "#fbbf24", "#f472b6"],
+      zIndex: 9999,
+      disableForReducedMotion: true,
+    });
+    setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        angle: 60,
+        spread: 60,
+        origin: { x: 0, y: 0.7 },
+        zIndex: 9999,
+        disableForReducedMotion: true,
+      });
+      confetti({
+        particleCount: 80,
+        angle: 120,
+        spread: 60,
+        origin: { x: 1, y: 0.7 },
+        zIndex: 9999,
+        disableForReducedMotion: true,
+      });
+    }, 350);
+
+    speakIfOn(
+      `恭喜！${exercise.name}全部完成，標準動作 ${valid} 次，動作品質 ${quality} 分，獲得 ${stars} 顆星！下一關已經為你解鎖了。`,
+      true
+    );
+  }, [showComplete, exercise, elapsedSeconds, speakIfOn]);
+
+  // 語音鼓勵 — 視覺提示 + 真實 TTS 朗讀
   useEffect(() => {
-    if (!voiceEnabled || isPaused || cameraState !== "ready") return;
+    if (phase !== "training" || !voiceEnabled || isPaused || cameraState !== "ready") return;
     const interval = setInterval(() => {
       const idx = Math.floor(Math.random() * VOICE_PROMPTS.length);
       setCurrentPrompt(VOICE_PROMPTS[idx]);
       setShowPrompt(true);
+      speak(VOICE_PROMPTS[idx]);
       setTimeout(() => setShowPrompt(false), 3500);
-    }, 10000);
+    }, 15000);
     return () => clearInterval(interval);
-  }, [voiceEnabled, isPaused, cameraState]);
+  }, [phase, voiceEnabled, isPaused, cameraState]);
 
   const formatTime = (s: number) =>
     `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
@@ -236,6 +442,23 @@ export function RehabExecution() {
         >
           返回闖關地圖
         </button>
+      </div>
+    );
+  }
+
+  if (phase === "demo") {
+    return (
+      <div className="h-screen bg-slate-950">
+        <RehabDemoBriefing
+          exercise={exercise}
+          onBack={() => navigate("/patient")}
+          onContinue={() => {
+            handRaiseRef.current = createHandRaiseTracker();
+            setHandRaiseProgress(0);
+            setReadySide(null);
+            setPhase("ready");
+          }}
+        />
       </div>
     );
   }
@@ -272,305 +495,415 @@ export function RehabExecution() {
     );
   }
 
-  return (
-    <div className="patient-large-text h-screen bg-black relative overflow-hidden flex">
-      {/* Camera — single video element, never unmount */}
-      <div className="flex-1 relative bg-black">
-        <video
-          ref={videoRef}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ transform: "scaleX(-1)" }}
-          playsInline
-          muted
-          autoPlay
-        />
-        <canvas
-          ref={canvasRef}
-          className="absolute inset-0 z-10 w-full h-full object-cover pointer-events-none"
-          style={{ transform: "scaleX(-1)" }}
-        />
+  if (phase === "ready" || phase === "training") {
+    return (
+      <div className="patient-large-text h-screen bg-black relative overflow-hidden flex">
+        {/* 鏡頭與骨架測點 — ready / training 共用，避免切換時卸載 */}
+        <div className="flex-1 relative bg-black">
+          <video
+            ref={videoRef}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ transform: "scaleX(-1)" }}
+            playsInline
+            muted
+            autoPlay
+          />
+          <canvas
+            ref={canvasRef}
+            className="absolute inset-0 z-30 w-full h-full object-cover pointer-events-none"
+          />
 
-        {/* Loading overlay — does NOT unmount video */}
-        {isLoading && (
-          <div className="absolute inset-0 z-40 bg-slate-900/95 flex flex-col items-center justify-center gap-6 px-6">
-            <motion.div
-              animate={{ scale: [1, 1.1, 1] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="w-20 h-20 rounded-full bg-teal-500/20 border-2 border-teal-500 flex items-center justify-center"
-            >
-              <Camera className="w-9 h-9 text-teal-400" />
-            </motion.div>
-            <div className="text-center">
-              <h2 className="text-white mb-2">
-                {cameraState === "loading-model"
-                  ? "載入姿勢偵測模型..."
-                  : "正在請求攝影機權限"}
-              </h2>
-              <p className="text-slate-400 text-sm max-w-sm">
-                {getAppDisplayName()} · BlazePose 33 關節點 / MoveNet 備援
-              </p>
+          {isLoading && (
+            <div className="absolute inset-0 z-40 bg-slate-900/95 flex flex-col items-center justify-center gap-6 px-6">
+              <motion.div
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="w-20 h-20 rounded-full bg-teal-500/20 border-2 border-teal-500 flex items-center justify-center"
+              >
+                <Camera className="w-9 h-9 text-teal-400" />
+              </motion.div>
+              <div className="text-center">
+                <h2 className="text-white mb-2">
+                  {cameraState === "loading-model"
+                    ? "載入姿勢偵測模型..."
+                    : "正在請求攝影機權限"}
+                </h2>
+                <p className="text-slate-400 text-sm max-w-sm">
+                  {getAppDisplayName()} · BlazePose 33 關節點 / MoveNet 備援
+                </p>
+              </div>
             </div>
-            <div className="flex gap-2">
-              {[0, 1, 2].map((i) => (
-                <motion.div
-                  key={i}
-                  className="w-2 h-2 bg-teal-500 rounded-full"
-                  animate={{ y: [0, -8, 0] }}
-                  transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-                />
-              ))}
+          )}
+
+          {isReady && !videoLive && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80">
+              <p className="text-white text-sm">鏡頭畫面載入中...</p>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* No video signal warning */}
-        {isReady && !videoLive && (
-          <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/80">
-            <p className="text-white text-sm">鏡頭畫面載入中...</p>
-          </div>
-        )}
+          {phase === "ready" && isReady && (
+            <div className="absolute bottom-8 left-4 z-20 pointer-events-none max-w-[min(300px,50vw)]">
+              <div className="bg-black/65 backdrop-blur-md border border-teal-400/30 rounded-2xl px-4 py-3">
+                <p className="text-teal-300 text-xs mb-1" style={{ fontWeight: 700 }}>準備好了嗎？</p>
+                <p className="text-white/90 text-sm leading-relaxed">
+                  請站進畫面中央，把整個身體都讓鏡頭看到。舉起右手 2 秒就會開始計數！
+                </p>
+              </div>
+            </div>
+          )}
 
-        {isReady && (
-        <>
-        <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
-          <motion.div
-            animate={{ opacity: [0.7, 1, 0.7] }}
-            transition={{ duration: 1.5, repeat: Infinity }}
-            className="flex items-center gap-2 bg-black/60 backdrop-blur-sm border border-emerald-500/40 rounded-full px-3 py-1.5"
-          >
-            <Activity className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-emerald-400 text-xs" style={{ fontWeight: 600 }}>
-              {engine === "blazepose" ? "BlazePose 33點" : "MoveNet 17點"} · {activeKeypoints} 偵測中 · {fps} FPS
-              {activeKeypoints === 0 && " · 請站入畫面"}
-            </span>
-            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-          </motion.div>
+          {phase === "training" && isReady && (
+            <div className="absolute bottom-28 left-4 z-20 pointer-events-none max-w-[min(280px,44vw)]">
+              <div className="bg-black/65 backdrop-blur-md border border-emerald-400/30 rounded-2xl px-4 py-2.5">
+                <p className="text-white/90 text-sm leading-relaxed">
+                  {feedback || "保持呼吸，動作放慢一點會更標準喔！"}
+                </p>
+              </div>
+            </div>
+          )}
 
-          <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm border border-white/15 rounded-full px-3 py-1.5">
-            <span className="text-white/80 text-xs">顯示骨架</span>
-            <Switch
-              checked={showSkeleton}
-              onCheckedChange={setShowSkeleton}
-              className="data-[state=checked]:bg-emerald-500"
+          {phase === "ready" ? (
+            <RehabReadyOverlays
+              cameraState={cameraState}
+              activeKeypoints={activeKeypoints}
+              fps={fps}
+              engine={engine}
+              showSkeleton={showSkeleton}
+              onToggleSkeleton={setShowSkeleton}
             />
-          </div>
+          ) : (
+            isReady && (
+              <>
+                <div className="absolute top-4 left-4 z-20 flex flex-col gap-2">
+                  <motion.div
+                    animate={{ opacity: [0.7, 1, 0.7] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                    className="flex items-center gap-2 bg-black/60 backdrop-blur-sm border border-emerald-500/40 rounded-full px-3 py-1.5"
+                  >
+                    <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-400 text-xs" style={{ fontWeight: 600 }}>
+                      {engine === "blazepose" ? "BlazePose 33點" : "MoveNet 17點"} · {activeKeypoints}{" "}
+                      偵測中 · {fps} FPS
+                      {activeKeypoints === 0 && " · 請站入畫面"}
+                    </span>
+                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                  </motion.div>
+
+                  <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm border border-white/15 rounded-full px-3 py-1.5">
+                    <span className="text-white/80 text-xs">顯示骨架</span>
+                    <Switch
+                      checked={showSkeleton}
+                      onCheckedChange={setShowSkeleton}
+                      className="data-[state=checked]:bg-emerald-500"
+                    />
+                  </div>
+                </div>
+
+                {jointAngle != null ? (
+                  <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm border border-teal-500/30 rounded-lg px-3 py-2">
+                    <p className="text-teal-300 text-xs">關節角度</p>
+                    <p className="text-white text-lg" style={{ fontWeight: 700 }}>
+                      {jointAngle}°
+                    </p>
+                    <p className="text-[10px] text-slate-400">
+                      目標 {exercise.pose.flexedAngle}°–{exercise.pose.extendedAngle}°
+                    </p>
+                  </div>
+                ) : (
+                  <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm border border-slate-500/30 rounded-lg px-3 py-2">
+                    <p className="text-slate-400 text-xs">關節角度</p>
+                    <p className="text-white text-lg" style={{ fontWeight: 700 }}>
+                      --°
+                    </p>
+                    <p className="text-[10px] text-slate-500">請面向鏡頭站入畫面</p>
+                  </div>
+                )}
+
+                <div className="absolute top-4 right-4">
+                  <div
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs border ${
+                      isStandard
+                        ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300"
+                        : "bg-amber-500/20 border-amber-400/40 text-amber-300"
+                    }`}
+                    style={{ fontWeight: 600 }}
+                  >
+                    <Target className="w-3.5 h-3.5" />
+                    {isStandard ? "動作標準" : "調整姿勢"}
+                  </div>
+                </div>
+
+                {/* 疲勞偵測 — 休息建議 */}
+                <AnimatePresence>
+                  {restSuggested && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -12 }}
+                      className="absolute top-16 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2.5 bg-amber-500/90 backdrop-blur-sm text-white rounded-2xl px-5 py-3 shadow-xl"
+                      role="status"
+                    >
+                      <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                      <p className="text-sm" style={{ fontWeight: 700 }}>
+                        動作變慢了，需要休息一下嗎？隨時可以按暫停
+                      </p>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </>
+            )
+          )}
         </div>
 
-        {/* Joint angle overlay */}
-        {jointAngle != null ? (
-          <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm border border-teal-500/30 rounded-lg px-3 py-2">
-            <p className="text-teal-300 text-xs">關節角度</p>
-            <p className="text-white text-lg" style={{ fontWeight: 700 }}>
-              {jointAngle}°
-            </p>
-            <p className="text-[10px] text-slate-400">
-              目標 {exercise.pose.flexedAngle}°–{exercise.pose.extendedAngle}°
-            </p>
-          </div>
-        ) : (
-          <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm border border-slate-500/30 rounded-lg px-3 py-2">
-            <p className="text-slate-400 text-xs">關節角度</p>
-            <p className="text-white text-lg" style={{ fontWeight: 700 }}>--°</p>
-            <p className="text-[10px] text-slate-500">請面向鏡頭站入畫面</p>
+        {phase === "ready" && (
+          <RehabReadyPanel
+            exercise={exercise}
+            handRaiseProgress={handRaiseProgress}
+            readySide={readySide}
+            detectedInFrame={detectedInFrame}
+            activeKeypoints={activeKeypoints}
+            keypointTotal={keypointTotal}
+            onBack={() => setPhase("demo")}
+          />
+        )}
+
+        {phase === "training" && (isLoading || isReady) && (
+          <div className="w-[340px] bg-slate-900/95 backdrop-blur-md border-l border-white/10 flex flex-col flex-shrink-0">
+            <div className="flex items-center justify-between p-4 border-b border-white/10">
+              <button
+                onClick={() => navigate("/patient")}
+                className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center"
+              >
+                <ArrowLeft className="w-4 h-4 text-white" />
+              </button>
+              <div className="text-center flex-1">
+                <p className="text-white/60 text-[10px]">關卡 {exercise.level}</p>
+                <h2 className="text-white text-sm" style={{ fontWeight: 700 }}>
+                  {exercise.name}
+                </h2>
+              </div>
+              <button
+                onClick={() =>
+                  setVoiceEnabled((v) => {
+                    const next = !v;
+                    persistVoiceEnabled(next);
+                    if (!next) stopSpeaking();
+                    return next;
+                  })
+                }
+                className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center"
+                aria-label={voiceEnabled ? "關閉語音教練" : "開啟語音教練"}
+                aria-pressed={voiceEnabled}
+              >
+                {voiceEnabled ? (
+                  <Volume2 className="w-4 h-4 text-teal-400" />
+                ) : (
+                  <VolumeX className="w-4 h-4 text-slate-400" />
+                )}
+              </button>
+            </div>
+
+            <AnimatePresence>
+              {showPrompt && voiceEnabled && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="px-4 pt-3"
+                >
+                  <div className="bg-teal-600/80 rounded-xl px-3 py-2 flex items-center gap-2">
+                    <Mic className="w-4 h-4 text-white flex-shrink-0" />
+                    <p className="text-white text-xs">{currentPrompt}</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="flex-1 p-4 flex flex-col justify-center gap-4">
+              <JointAngleGauge exercise={exercise} angle={jointAngle} />
+
+              <div className="text-center">
+                <p className="text-slate-400 text-xs mb-1">第 {currentSet} 組</p>
+                <div className="flex items-end gap-1 justify-center">
+                  <motion.span
+                    key={currentRep}
+                    initial={{ scale: 1.3, color: "#34d399" }}
+                    animate={{ scale: 1, color: "#ffffff" }}
+                    className="text-6xl text-white"
+                    style={{ fontWeight: 800, lineHeight: 1 }}
+                  >
+                    {currentRep}
+                  </motion.span>
+                  <span className="text-slate-400 text-2xl mb-2">/{exercise.repsPerSet}</span>
+                </div>
+                <p className="text-slate-500 text-xs mt-1">標準次數 {validReps}</p>
+              </div>
+
+              <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-teal-400 to-emerald-400 rounded-full"
+                  animate={{ width: `${overallProgress * 100}%` }}
+                />
+              </div>
+
+              <div className="flex justify-center gap-6 text-center">
+                <div>
+                  <p className="text-slate-500 text-[10px]">時間</p>
+                  <p
+                    className="text-white text-lg"
+                    style={{ fontFamily: "monospace", fontWeight: 700 }}
+                  >
+                    {formatTime(elapsedSeconds)}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-slate-500 text-[10px]">組別</p>
+                  <div className="flex gap-1 mt-1">
+                    {Array.from({ length: exercise.sets }).map((_, i) => (
+                      <div
+                        key={i}
+                        className={`w-6 h-1.5 rounded-full ${
+                          i < currentSet - 1
+                            ? "bg-emerald-400"
+                            : i === currentSet - 1
+                              ? "bg-teal-400"
+                              : "bg-white/20"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white/5 rounded-xl px-3 py-2 border border-white/10">
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-slate-400 text-[10px]">姿勢偵測</p>
+                  <p className="text-emerald-400 text-[10px]" style={{ fontWeight: 600 }}>
+                    {keypointTotal} 關節點 · {activeKeypoints} 可見
+                  </p>
+                </div>
+                <p className="text-slate-300 text-xs text-center leading-relaxed">
+                  {exercise.instruction}
+                </p>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-white/10 flex gap-3">
+              <motion.button
+                whileTap={{ scale: 0.96 }}
+                onClick={() =>
+                  setIsPaused((p) => {
+                    const next = !p;
+                    speakIfOn(next ? "已暫停，好好休息，不用急。" : "繼續加油！", true);
+                    return next;
+                  })
+                }
+                className="flex-1 h-11 rounded-xl bg-teal-500 flex items-center justify-center gap-2 text-white text-sm"
+                style={{ fontWeight: 600 }}
+              >
+                {isPaused ? (
+                  <>
+                    <Play className="w-4 h-4 fill-white" /> 繼續
+                  </>
+                ) : (
+                  <>
+                    <Pause className="w-4 h-4" /> 暫停
+                  </>
+                )}
+              </motion.button>
+              <button
+                onClick={() => navigate("/patient")}
+                className="w-11 h-11 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center"
+              >
+                <Square className="w-4 h-4 text-white" />
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Standard indicator */}
-        <div className="absolute top-4 right-4">
-          <div
-            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs border ${
-              isStandard
-                ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300"
-                : "bg-amber-500/20 border-amber-400/40 text-amber-300"
-            }`}
-            style={{ fontWeight: 600 }}
-          >
-            <Target className="w-3.5 h-3.5" />
-            {isStandard ? "動作標準" : "調整姿勢"}
-          </div>
-        </div>
-        </>
-        )}
-      </div>
-
-      {/* Right panel — visible during load & ready */}
-      {(isLoading || isReady) && (
-      <div className="w-[340px] bg-slate-900/95 backdrop-blur-md border-l border-white/10 flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-white/10">
-          <button
-            onClick={() => navigate("/patient")}
-            className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center"
-          >
-            <ArrowLeft className="w-4 h-4 text-white" />
-          </button>
-          <div className="text-center flex-1">
-            <p className="text-white/60 text-[10px]">關卡 {exercise.level}</p>
-            <h2 className="text-white text-sm" style={{ fontWeight: 700 }}>
-              {exercise.name}
-            </h2>
-          </div>
-          <button
-            onClick={() => setVoiceEnabled((v) => !v)}
-            className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center"
-          >
-            {voiceEnabled ? (
-              <Volume2 className="w-4 h-4 text-teal-400" />
-            ) : (
-              <VolumeX className="w-4 h-4 text-slate-400" />
-            )}
-          </button>
-        </div>
-
-        {/* Voice prompt */}
         <AnimatePresence>
-          {showPrompt && voiceEnabled && (
+          {showComplete && (
             <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              className="px-4 pt-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="absolute inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center"
             >
-              <div className="bg-teal-600/80 rounded-xl px-3 py-2 flex items-center gap-2">
-                <Mic className="w-4 h-4 text-white flex-shrink-0" />
-                <p className="text-white text-xs">{currentPrompt}</p>
+              <div className="text-center px-6">
+                <motion.div
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: "spring", damping: 12 }}
+                  className="mb-4"
+                >
+                  <p className="text-4xl mb-2" aria-hidden>🎉</p>
+                  <h2 className="text-white text-2xl" style={{ fontWeight: 800 }}>
+                    「{exercise.name}」完成！
+                  </h2>
+                  <p className="text-teal-200 text-sm mt-1">
+                    今天又多前進一步，繼續保持！
+                  </p>
+                </motion.div>
+
+                {sessionResult && (
+                  <div className="mb-5">
+                    <div className="flex justify-center gap-2 mb-3" aria-label={`獲得 ${sessionResult.stars} 顆星`}>
+                      {[1, 2, 3].map((s) => (
+                        <motion.svg
+                          key={s}
+                          initial={{ scale: 0, rotate: -30 }}
+                          animate={{ scale: 1, rotate: 0 }}
+                          transition={{ delay: 0.3 + s * 0.25, type: "spring", damping: 10 }}
+                          viewBox="0 0 24 24"
+                          className={`w-12 h-12 ${
+                            s <= sessionResult.stars
+                              ? "fill-amber-400 text-amber-400"
+                              : "fill-slate-700 text-slate-700"
+                          }`}
+                        >
+                          <path d="M12 2l2.9 6.26 6.86.62-5.18 4.53 1.54 6.72L12 16.77l-6.12 3.36 1.54-6.72L2.24 8.88l6.86-.62L12 2z" />
+                        </motion.svg>
+                      ))}
+                    </div>
+                    <div className="flex justify-center gap-6 text-center">
+                      <div>
+                        <p className="text-slate-400 text-xs">動作品質</p>
+                        <p className="text-teal-300 text-2xl" style={{ fontWeight: 800 }}>
+                          {sessionResult.quality} 分
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-xs">標準次數</p>
+                        <p className="text-emerald-300 text-2xl" style={{ fontWeight: 800 }}>
+                          {validReps} 次
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-slate-400 text-xs">訓練時間</p>
+                        <p className="text-sky-300 text-2xl" style={{ fontWeight: 800 }}>
+                          {formatTime(elapsedSeconds)}
+                        </p>
+                      </div>
+                    </div>
+                    <p className="text-emerald-300/90 text-sm mt-3" style={{ fontWeight: 700 }}>
+                      🔓 下一關已解鎖，成果已同步給家人與醫師
+                    </p>
+                  </div>
+                )}
+
+                <button
+                  onClick={() => navigate("/patient")}
+                  className="px-8 py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl"
+                  style={{ fontWeight: 600 }}
+                >
+                  返回闖關地圖
+                </button>
               </div>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Stats */}
-        <div className="flex-1 p-4 flex flex-col justify-center gap-4">
-          <div className="text-center">
-            <p className="text-slate-400 text-xs mb-1">第 {currentSet} 組</p>
-            <div className="flex items-end gap-1 justify-center">
-              <motion.span
-                key={currentRep}
-                initial={{ scale: 1.3, color: "#34d399" }}
-                animate={{ scale: 1, color: "#ffffff" }}
-                className="text-6xl text-white"
-                style={{ fontWeight: 800, lineHeight: 1 }}
-              >
-                {currentRep}
-              </motion.span>
-              <span className="text-slate-400 text-2xl mb-2">/{exercise.repsPerSet}</span>
-            </div>
-            <p className="text-slate-500 text-xs mt-1">標準次數 {validReps}</p>
-          </div>
-
-          <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-            <motion.div
-              className="h-full bg-gradient-to-r from-teal-400 to-emerald-400 rounded-full"
-              animate={{ width: `${overallProgress * 100}%` }}
-            />
-          </div>
-
-          <div className="flex justify-center gap-6 text-center">
-            <div>
-              <p className="text-slate-500 text-[10px]">時間</p>
-              <p className="text-white text-lg" style={{ fontFamily: "monospace", fontWeight: 700 }}>
-                {formatTime(elapsedSeconds)}
-              </p>
-            </div>
-            <div>
-              <p className="text-slate-500 text-[10px]">組別</p>
-              <div className="flex gap-1 mt-1">
-                {Array.from({ length: exercise.sets }).map((_, i) => (
-                  <div
-                    key={i}
-                    className={`w-6 h-1.5 rounded-full ${
-                      i < currentSet - 1
-                        ? "bg-emerald-400"
-                        : i === currentSet - 1
-                          ? "bg-teal-400"
-                          : "bg-white/20"
-                    }`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white/5 rounded-xl px-3 py-2 border border-white/10">
-            <div className="flex items-center justify-between mb-1">
-              <p className="text-slate-400 text-[10px]">姿勢偵測</p>
-              <p className="text-emerald-400 text-[10px]" style={{ fontWeight: 600 }}>
-                {keypointTotal} 關節點 · {activeKeypoints} 可見
-              </p>
-            </div>
-            <p className="text-slate-300 text-xs text-center leading-relaxed">
-              {exercise.instruction}
-            </p>
-          </div>
-
-          <div className="bg-teal-500/10 border border-teal-500/20 rounded-xl px-3 py-2">
-            <p className="text-teal-300 text-xs text-center">{feedback}</p>
-          </div>
-        </div>
-
-        {/* Controls */}
-        <div className="p-4 border-t border-white/10 flex gap-3">
-          <motion.button
-            whileTap={{ scale: 0.96 }}
-            onClick={() => setIsPaused((p) => !p)}
-            className="flex-1 h-11 rounded-xl bg-teal-500 flex items-center justify-center gap-2 text-white text-sm"
-            style={{ fontWeight: 600 }}
-          >
-            {isPaused ? (
-              <>
-                <Play className="w-4 h-4 fill-white" /> 繼續
-              </>
-            ) : (
-              <>
-                <Pause className="w-4 h-4" /> 暫停
-              </>
-            )}
-          </motion.button>
-          <button
-            onClick={() => navigate("/patient")}
-            className="w-11 h-11 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center"
-          >
-            <Square className="w-4 h-4 text-white" />
-          </button>
-        </div>
       </div>
-      )}
+    );
+  }
 
-      {/* Completion overlay */}
-      <AnimatePresence>
-        {showComplete && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center"
-          >
-            <div className="text-center">
-              <motion.div
-                initial={{ scale: 0 }}
-                animate={{ scale: 1 }}
-                transition={{ type: "spring", damping: 15 }}
-                className="w-20 h-20 rounded-full bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center mx-auto mb-4"
-              >
-                <CheckCircle2 className="w-10 h-10 text-white" />
-              </motion.div>
-              <h2 className="text-white text-xl mb-2" style={{ fontWeight: 700 }}>
-                關卡 {exercise.level} 通關！
-              </h2>
-              <p className="text-teal-300 text-sm mb-1">
-                {exercise.name} · 標準 {validReps} 次
-              </p>
-              <p className="text-slate-400 text-xs mb-6">用時 {formatTime(elapsedSeconds)}</p>
-              <button
-                onClick={() => navigate("/patient")}
-                className="px-8 py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl"
-                style={{ fontWeight: 600 }}
-              >
-                返回闖關地圖
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
+  return null;
 }

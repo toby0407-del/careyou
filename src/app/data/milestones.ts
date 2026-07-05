@@ -11,6 +11,13 @@ import {
   Stethoscope,
   type LucideIcon,
 } from "lucide-react";
+import {
+  getStreakDays,
+  getLiveExercises,
+  getTotalValidReps,
+  getAllSessions,
+  todayStr,
+} from "./progressStore";
 
 export type MilestoneCategory = "streak" | "level" | "quality" | "recovery" | "special";
 
@@ -304,3 +311,35 @@ export const milestones: Milestone[] = [
 ];
 
 export const unlockedCount = milestones.filter((m) => m.unlocked).length;
+
+const LEVEL_COUNT_IDS = new Set(["level-first", "level-half", "level-all", "level-4", "level-5"]);
+const REP_COUNT_IDS = new Set(["quality-500", "quality-1000"]);
+const QUALITY_PCT_IDS = new Set(["quality-90", "quality-95"]);
+
+/** 里程碑即時進度 — 由統一進度資料層驅動（連續天數 / 關卡 / 標準動作 / 品質） */
+export function getLiveMilestones(): Milestone[] {
+  const streak = getStreakDays();
+  const completedLevels = getLiveExercises().filter((e) => e.completed).length;
+  const totalReps = getTotalValidReps();
+  const sessionQualities = getAllSessions().map((s) => s.quality);
+  const bestQuality = Math.max(91, ...(sessionQualities.length ? sessionQualities : [0]));
+
+  return milestones.map((m) => {
+    let current: number | null = null;
+    if (m.category === "streak" && m.unit === "天") current = streak;
+    else if (LEVEL_COUNT_IDS.has(m.id)) current = completedLevels;
+    else if (REP_COUNT_IDS.has(m.id)) current = totalReps;
+    else if (QUALITY_PCT_IDS.has(m.id)) current = bestQuality;
+
+    // 非即時驅動的里程碑維持原設定
+    if (current === null) return m;
+
+    const unlocked = current >= m.target;
+    return {
+      ...m,
+      current,
+      unlocked,
+      unlockedDate: unlocked ? (m.unlockedDate ?? todayStr()) : undefined,
+    };
+  });
+}

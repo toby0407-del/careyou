@@ -2,6 +2,24 @@
 .patient-large-text {
   font-size: 28.8px;
   line-height: 1.45;
+  --patient-bg: #ecfdf5;
+  --patient-bg-soft: #f0fdf4;
+  --patient-border: rgba(167, 243, 208, 0.55);
+}
+
+/* 患者端外殼 — 淡淡綠色背景 */
+.patient-shell {
+  background: linear-gradient(165deg, var(--patient-bg-soft) 0%, var(--patient-bg) 45%, #e8faf0 100%);
+}
+
+.patient-shell-header {
+  background: color-mix(in srgb, var(--patient-bg) 92%, white);
+  border-color: var(--patient-border);
+}
+
+.patient-shell-nav {
+  background: color-mix(in srgb, var(--patient-bg) 95%, white);
+  border-color: var(--patient-border);
 }
 
 .patient-large-text .text-\[8px\] {
@@ -82,12 +100,12 @@
 }
 
 .patient-large-text .patient-map-ui .map-text-xs {
-  font-size: 10px !important;
+  font-size: 12px !important;
   line-height: 1.35 !important;
 }
 
 .patient-large-text .patient-map-ui .map-text-sm {
-  font-size: 11px !important;
+  font-size: 15px !important;
   line-height: 1.35 !important;
 }
 
@@ -185,4 +203,30 @@
 .patient-large-text .patient-milestones-ui .milestone-chip {
   font-size: 12px !important;
   line-height: 1.2 !important;
+}
+
+.patient-large-text .patient-milestones-ui .milestone-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.patient-large-text .patient-milestones-ui .milestone-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+/* 訓練準備彈窗 — 三格數據不換行、不爆版 */
+.patient-large-text .patient-briefing-stats .briefing-stat-label {
+  font-size: 15px !important;
+  line-height: 1.2 !important;
+}
+
+.patient-large-text .patient-briefing-stats .briefing-stat-value {
+  font-size: 20px !important;
+  line-height: 1.15 !important;
+  white-space: nowrap;
+}
+
+.patient-large-text .briefing-angle-value {
+  font-size: 22px !important;
+  line-height: 1.1 !important;
 }
