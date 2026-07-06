@@ -426,7 +426,7 @@ export function RehabExecution() {
 
   if (isLocked) {
     return (
-      <div className="h-screen bg-slate-900 flex flex-col items-center justify-center gap-5 px-6">
+      <div className="rehab-app-shell bg-slate-900 flex flex-col items-center justify-center gap-5 px-6">
         <div className="w-20 h-20 rounded-full bg-slate-700/50 border-2 border-slate-500 flex items-center justify-center">
           <Lock className="w-9 h-9 text-slate-300" />
         </div>
@@ -448,7 +448,7 @@ export function RehabExecution() {
 
   if (phase === "demo") {
     return (
-      <div className="h-screen bg-slate-950">
+      <div className="rehab-app-shell bg-slate-950">
         <RehabDemoBriefing
           exercise={exercise}
           onBack={() => navigate("/patient")}
@@ -465,7 +465,7 @@ export function RehabExecution() {
 
   if (cameraState === "denied" || cameraState === "error") {
     return (
-      <div className="h-screen bg-slate-900 flex flex-col items-center justify-center gap-5 px-6">
+      <div className="rehab-app-shell bg-slate-900 flex flex-col items-center justify-center gap-5 px-6">
         <video ref={videoRef} className="hidden" playsInline muted />
         <div className="w-20 h-20 rounded-full bg-red-500/20 border-2 border-red-400 flex items-center justify-center">
           <AlertCircle className="w-9 h-9 text-red-400" />
@@ -497,7 +497,7 @@ export function RehabExecution() {
 
   if (phase === "ready" || phase === "training") {
     return (
-      <div className="patient-large-text h-screen bg-black relative overflow-hidden flex">
+      <div className="patient-large-text rehab-app-shell bg-black relative overflow-hidden flex">
         {/* 鏡頭與骨架測點 — ready / training 共用，避免切換時卸載 */}
         <div className="flex-1 relative bg-black">
           <video

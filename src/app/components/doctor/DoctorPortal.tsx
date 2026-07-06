@@ -1312,10 +1312,10 @@ export function DoctorPortal() {
   };
 
   return (
-    <div className="portal-large-text h-screen bg-gradient-to-br from-sky-50/40 via-slate-50 to-blue-50/30 flex flex-col overflow-hidden">
+    <div className="portal-large-text rehab-app-shell bg-gradient-to-br from-sky-50/40 via-slate-50 to-blue-50/30 flex flex-col overflow-hidden">
       {/* Horizontal Header */}
       <header className="bg-gradient-to-r from-sky-100/90 via-sky-50/90 to-blue-50/80 border-b border-sky-100 px-6 py-3 flex-shrink-0">
-        <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-6">
+        <div className="rehab-content flex items-center justify-between gap-6">
           <div className="flex items-center gap-4">
             <button
               onClick={() => navigate("/")}
@@ -1359,7 +1359,7 @@ export function DoctorPortal() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-[1440px] w-full mx-auto px-6 py-3 flex flex-col min-h-0 gap-2 overflow-hidden">
+      <main className="flex-1 rehab-content w-full px-6 py-3 flex flex-col min-h-0 gap-2 overflow-hidden">
         {/* Search & Filter Toolbar */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-sm border border-sky-100 p-3 flex items-center gap-4 flex-shrink-0">
           <div className="flex items-center gap-2 bg-slate-100 rounded-xl px-3 py-2 flex-1 max-w-md">

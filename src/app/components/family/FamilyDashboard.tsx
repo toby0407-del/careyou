@@ -147,11 +147,11 @@ export function FamilyDashboard() {
   }, []);
 
   return (
-    <div className="portal-large-text h-screen bg-gradient-to-br from-rose-50/40 via-stone-50 to-sky-50/30 overflow-hidden flex flex-col">
+    <div className="portal-large-text rehab-app-shell bg-gradient-to-br from-rose-50/40 via-stone-50 to-sky-50/30 overflow-hidden flex flex-col">
       <header className="flex-shrink-0 bg-white/80 backdrop-blur-md border-b border-rose-100/80 shadow-sm">
         {/* Row 1 — 病患資訊與快捷狀態 */}
         <div className="px-6 py-3 border-b border-rose-50">
-          <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-6">
+          <div className="rehab-content flex items-center justify-between gap-6">
             <div className="flex items-center gap-4 min-w-0">
               <button
                 type="button"
@@ -185,7 +185,7 @@ export function FamilyDashboard() {
                 <p className="text-slate-500 text-sm mt-0.5 truncate">
                   {patientProfile.age} 歲 · {patientProfile.diagnosis} · {patientProfile.rehabPhase}
                 </p>
-                <p className="text-rose-400 text-[10px] mt-0.5">點擊查看身高、體重、住址等資料</p>
+                <p className="text-rose-400 text-[10px] mt-0.5">點選查看患者資料</p>
               </button>
             </div>
 
@@ -248,7 +248,7 @@ export function FamilyDashboard() {
           </div>
 
           {/* 手機版狀態列 */}
-          <div className="max-w-[1440px] mx-auto flex lg:hidden items-center gap-2 mt-3">
+          <div className="rehab-content flex lg:hidden items-center gap-2 mt-3">
             <div className="flex items-center gap-1.5 bg-emerald-50 border border-emerald-100 rounded-xl px-3 py-2 text-sm text-emerald-600" style={{ fontWeight: 600 }}>
               <Activity className="w-3.5 h-3.5" />
               狀態良好
@@ -262,7 +262,7 @@ export function FamilyDashboard() {
 
         {/* Row 2 — 分頁導覽 */}
         <div className="px-6 py-2">
-          <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4">
+          <div className="rehab-content flex items-center justify-between gap-4">
             <div className="flex bg-rose-50/80 rounded-2xl p-1.5 border border-rose-100">
               {familyTabs.map((tab) => {
                 const Icon = tab.icon;
@@ -303,8 +303,8 @@ export function FamilyDashboard() {
           <TimeGallery variant="family" patientName={patientProfile.name} />
         </div>
       ) : (
-      <main className="flex-1 min-h-0 w-full max-w-[1440px] mx-auto px-4 py-2 flex flex-col gap-2 overflow-hidden">
-        <PatientAnalyticsPanel analytics={analytics} theme="family" layout="fluid" />
+      <main className="flex-1 min-h-0 w-full rehab-content px-4 py-2 flex flex-col gap-2 overflow-hidden">
+        <PatientAnalyticsPanel analytics={analytics} theme="family" layout="fluid" expandable />
       </main>
       )}
 

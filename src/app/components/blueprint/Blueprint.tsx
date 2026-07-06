@@ -15,9 +15,9 @@ export function Blueprint() {
   ];
 
   return (
-    <div className="blueprint-large-text blueprint-shell h-screen flex flex-col overflow-hidden">
+    <div className="blueprint-large-text blueprint-shell rehab-app-shell flex flex-col overflow-hidden">
       <header className="blueprint-shell-header px-6 py-2.5 border-b flex-shrink-0">
-        <div className="max-w-[1440px] mx-auto flex items-center justify-between gap-4">
+        <div className="rehab-content flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <button
               onClick={() => navigate("/")}
@@ -72,7 +72,7 @@ export function Blueprint() {
       </div>
 
       <main className="blueprint-main flex-1 min-h-0 px-6 py-2">
-        <div className="max-w-[1440px] mx-auto h-full min-h-0">
+        <div className="rehab-content h-full min-h-0">
           {activeTab === "overview" && <BlueprintSystemView />}
           {activeTab === "demo" && <ExerciseDemoShowcase />}
         </div>

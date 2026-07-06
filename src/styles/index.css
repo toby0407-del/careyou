@@ -2,6 +2,7 @@
 @import './tailwind.css';
 @import './theme.css';
 @import './globals.css';
+@import './ipad-layout.css';
 @import './portal-large.css';
 @import './patient-large.css';
 @import './blueprint-large.css';

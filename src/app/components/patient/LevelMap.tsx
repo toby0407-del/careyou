@@ -8,14 +8,14 @@ import {
 } from "../../data/patientExercises";
 import { useLiveExercises } from "../../hooks/useLiveProgress";
 
-/** Zigzag map positions (%, %) — landscape adventure path */
+/** Zigzag map positions (%, %) — 略偏下，留頂部空間 */
 const MAP_POSITIONS: { x: number; y: number }[] = [
-  { x: 6, y: 50 },
-  { x: 22, y: 28 },
-  { x: 38, y: 50 },
-  { x: 54, y: 28 },
-  { x: 70, y: 50 },
-  { x: 86, y: 28 },
+  { x: 8, y: 52 },
+  { x: 24, y: 36 },
+  { x: 40, y: 52 },
+  { x: 56, y: 36 },
+  { x: 72, y: 52 },
+  { x: 88, y: 36 },
 ];
 
 function buildPathD(points: { x: number; y: number }[]): string {
@@ -131,7 +131,7 @@ function MapNode({
           className="absolute inset-0 -m-3 rounded-full border-2 border-teal-400"
           animate={{ scale: [1, 1.35, 1], opacity: [0.7, 0, 0.7] }}
           transition={{ duration: 2, repeat: Infinity }}
-          style={{ width: 120, height: 120, left: "50%", top: "50%", x: "-50%", y: "-50%" }}
+          style={{ width: 97, height: 97, left: "50%", top: "50%", x: "-50%", y: "-50%" }}
         />
       )}
 
@@ -143,38 +143,38 @@ function MapNode({
         whileTap={status !== "locked" ? { scale: 0.95 } : {}}
         disabled={status === "locked"}
         onClick={() => status !== "locked" && navigate(`/patient/rehab/${exercise.id}`)}
-        className={`relative flex flex-col items-center gap-2.5 group ${
+        className={`relative flex flex-col items-center gap-2 group ${
           status === "locked" ? "cursor-not-allowed" : "cursor-pointer"
         }`}
       >
         {/* Island base shadow */}
         <div
-          className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-24 h-4 rounded-full blur-sm ${
+          className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-[5.25rem] h-3.5 rounded-full blur-sm ${
             status === "locked" ? "bg-slate-300/40" : "bg-teal-400/30"
           }`}
         />
 
         {/* Node circle */}
         <div
-          className={`relative w-[104px] h-[104px] rounded-full flex items-center justify-center border-4 transition-all ${
+          className={`relative w-[83px] h-[83px] rounded-full flex items-center justify-center border-[3px] transition-all ${
             status === "locked"
               ? "bg-slate-100 border-slate-250 border-slate-200"
               : status === "completed"
               ? "bg-gradient-to-br from-emerald-400 to-teal-500 border-white shadow-lg shadow-emerald-200"
-              : "bg-gradient-to-br from-teal-400 to-emerald-500 border-white shadow-xl shadow-teal-300 ring-4 ring-teal-100"
+              : "bg-gradient-to-br from-teal-400 to-emerald-500 border-white shadow-lg shadow-teal-300 ring-[3px] ring-teal-100"
           }`}
         >
           {status === "locked" ? (
-            <Lock className="w-10 h-10 text-slate-400" />
+            <Lock className="w-9 h-9 text-slate-400" />
           ) : status === "completed" ? (
-            <CheckCircle2 className="w-11 h-11 text-white" strokeWidth={2.5} />
+            <CheckCircle2 className="w-10 h-10 text-white" strokeWidth={2.5} />
           ) : (
-            <Play className="w-11 h-11 text-white fill-white ml-0.5" />
+            <Play className="w-10 h-10 text-white fill-white ml-0.5" />
           )}
 
           {/* Level badge */}
           <span
-            className="absolute -top-1 -right-1 w-8 h-8 rounded-full text-white map-text-sm flex items-center justify-center shadow-md border-2 border-white"
+            className="absolute -top-0.5 -right-0.5 w-7 h-7 rounded-full text-white map-text-xs flex items-center justify-center shadow-md border-2 border-white"
             style={{ background: accent, fontWeight: 800 }}
           >
             {exercise.level}
@@ -183,7 +183,7 @@ function MapNode({
 
         {/* Label card */}
         <div
-          className={`text-center px-3 py-2.5 rounded-xl w-[138px] max-w-[138px] border transition-all ${
+          className={`text-center px-2 py-1.5 rounded-xl w-[115px] max-w-[115px] border transition-all ${
             status === "locked"
               ? "bg-slate-50/80 border-slate-100"
               : status === "active"
@@ -206,7 +206,7 @@ function MapNode({
               {[1, 2, 3].map((s) => (
                 <Star
                   key={s}
-                  className={`w-3.5 h-3.5 ${
+                  className={`w-3 h-3 ${
                     s <= exercise.stars ? "text-amber-400 fill-amber-400" : "text-slate-200"
                   }`}
                 />
@@ -265,8 +265,8 @@ export function LevelMap() {
         <div className="absolute right-[8%] bottom-[12%] text-2xl opacity-30 select-none">🌸</div>
 
         {/* Path + nodes */}
-        <div className="absolute inset-0 overflow-x-auto overflow-y-hidden pb-[5.5rem]">
-          <div className="relative h-full min-w-[1080px] w-full">
+        <div className="absolute inset-0 map-node-area overflow-x-auto overflow-y-hidden pt-[7%] pb-[4%]">
+          <div className="relative h-full w-full min-w-0">
             <MapPath statuses={statuses} />
 
             {liveExercises.map((exercise, idx) => {
@@ -285,59 +285,59 @@ export function LevelMap() {
               );
             })}
 
-            {/* "前往下一關" arrow on active segment */}
+            {/* 路徑上的腳印提示（僅圖示，不擋關卡文字） */}
             {activeIdx >= 0 && activeIdx < MAP_POSITIONS.length - 1 && (
               <motion.div
-                className="absolute z-20 flex items-center gap-1.5 bg-teal-600 text-white map-text-sm px-3 py-1.5 rounded-full shadow-lg whitespace-nowrap"
+                className="absolute z-[5] pointer-events-none flex items-center justify-center w-9 h-9 bg-teal-600/90 text-white rounded-full shadow-md"
                 style={{
                   left: `${(MAP_POSITIONS[activeIdx].x + MAP_POSITIONS[activeIdx + 1].x) / 2}%`,
-                  top: `${(MAP_POSITIONS[activeIdx].y + MAP_POSITIONS[activeIdx + 1].y) / 2 - 8}%`,
+                  top: `${(MAP_POSITIONS[activeIdx].y + MAP_POSITIONS[activeIdx + 1].y) / 2}%`,
                   transform: "translate(-50%, -50%)",
-                  fontWeight: 700,
                 }}
-                animate={{ x: [0, 6, 0] }}
+                animate={{ scale: [1, 1.12, 1], opacity: [0.85, 1, 0.85] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
+                role="img"
+                aria-label="前往下一關"
               >
                 <Footprints className="w-4 h-4" />
-                前往下一關
               </motion.div>
             )}
           </div>
         </div>
+      </div>
 
-        {/* Category progress strip — 疊在地圖底部，節省下方空間 */}
-        <div className="category-strip absolute bottom-3 left-3 right-3 z-30 grid grid-cols-3 gap-2.5">
-          {categories.map((cat) => {
-            const CatIcon = cat.icon;
-            const catIds = new Set(cat.exercises.map((e) => e.id));
-            const done = liveExercises.filter((e) => catIds.has(e.id) && e.completed).length;
-            const pct = Math.round((done / cat.exercises.length) * 100);
-            return (
-              <div
-                key={cat.id}
-                className={`${cat.bg} ${cat.border} border rounded-2xl px-3 py-2.5 flex items-center gap-2.5 h-[68px] shadow-md backdrop-blur-sm`}
-              >
-                <div className="w-11 h-11 rounded-xl bg-white/80 flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <CatIcon className={`w-5 h-5 ${cat.iconColor}`} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm ${cat.color} truncate leading-tight`} style={{ fontWeight: 700 }}>
-                    {cat.label}
-                  </p>
-                  <div className="h-2.5 bg-white/70 rounded-full mt-1.5 overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all duration-500"
-                      style={{ width: `${pct}%`, background: cat.accent }}
-                    />
-                  </div>
-                </div>
-                <span className="text-sm text-slate-600 flex-shrink-0 tabular-nums" style={{ fontWeight: 700 }}>
-                  {done}/{cat.exercises.length}
-                </span>
+      {/* 訓練分類進度 — 地圖下方、貼近底部導覽 */}
+      <div className="category-strip flex-shrink-0 grid grid-cols-3 gap-3 px-1 pt-1.5 pb-2 mt-auto">
+        {categories.map((cat) => {
+          const CatIcon = cat.icon;
+          const catIds = new Set(cat.exercises.map((e) => e.id));
+          const done = liveExercises.filter((e) => catIds.has(e.id) && e.completed).length;
+          const pct = Math.round((done / cat.exercises.length) * 100);
+          return (
+            <div
+              key={cat.id}
+              className={`category-strip-card ${cat.bg} ${cat.border} border rounded-2xl px-3 py-2.5 flex items-center gap-2.5 min-h-[80px] shadow-md backdrop-blur-sm`}
+            >
+              <div className="category-strip-icon w-14 h-14 rounded-xl bg-white/80 flex items-center justify-center flex-shrink-0 shadow-sm">
+                <CatIcon className={`category-strip-icon-glyph w-6 h-6 ${cat.iconColor}`} />
               </div>
-            );
-          })}
-        </div>
+              <div className="flex-1 min-w-0">
+                <p className={`category-strip-title ${cat.color} truncate leading-tight`} style={{ fontWeight: 700 }}>
+                  {cat.label}
+                </p>
+                <div className="category-strip-bar h-3 bg-white/70 rounded-full mt-2 overflow-hidden">
+                  <div
+                    className="h-full rounded-full transition-all duration-500"
+                    style={{ width: `${pct}%`, background: cat.accent }}
+                  />
+                </div>
+              </div>
+              <span className="category-strip-count text-slate-600 flex-shrink-0 tabular-nums" style={{ fontWeight: 700 }}>
+                {done}/{cat.exercises.length}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

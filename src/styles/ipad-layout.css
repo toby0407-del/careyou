@@ -1,0 +1,180 @@
+/* RehabBridge — iPad-first layout (landscape 1024×768 baseline) */
+
+:root {
+  --rehab-content-max: 1024px;
+  --rehab-pad-x: 1.25rem;
+  --rehab-pad-y: 0.75rem;
+  --rehab-touch-min: 44px;
+  --rehab-tab-bar-max: 36rem;
+  /* iOS 狀態列（時間、日期）避讓 */
+  --rehab-safe-top: env(safe-area-inset-top, 0px);
+  --rehab-safe-bottom: env(safe-area-inset-bottom, 0px);
+
+  /* Font scale — tuned for iPad readability */
+  --pt-scale: 1.35;
+  --portal-scale: 1.2;
+  --blueprint-scale: 1.15;
+
+  /* Sub-panel UI (maps, charts) */
+  --pt-ui-scale: 1;
+  --pt-results-scale: 1;
+}
+
+@media (min-width: 1367px) {
+  :root {
+    --rehab-content-max: 1440px;
+    --rehab-pad-x: 1.5rem;
+    --pt-scale: 1.8;
+    --portal-scale: 1.5;
+    --blueprint-scale: 1.4;
+    --pt-ui-scale: 1;
+    --pt-results-scale: 1;
+  }
+}
+
+@media (max-width: 767px) {
+  :root {
+    --rehab-content-max: 100%;
+    --rehab-pad-x: 0.75rem;
+    --pt-scale: 1.25;
+    --portal-scale: 1.1;
+    --blueprint-scale: 1.05;
+  }
+}
+
+/* Full-height shell with iOS safe areas */
+.rehab-app-shell,
+.rehab-entry-shell {
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  box-sizing: border-box;
+  /* 整體下移，避開 iPad 狀態列（時間、星期、日期） */
+  padding-top: max(28px, var(--rehab-safe-top));
+  padding-bottom: var(--rehab-safe-bottom);
+}
+
+/* Centered content column — iPad width */
+.rehab-content {
+  width: 100%;
+  max-width: var(--rehab-content-max);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Bottom tab bar — wider on iPad */
+.rehab-tab-bar {
+  width: 100%;
+  max-width: var(--rehab-tab-bar-max);
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.rehab-tab-bar button {
+  min-height: var(--rehab-touch-min);
+}
+
+/* Entry page — fit 1024×768 landscape */
+.rehab-entry-grid {
+  width: 100%;
+  max-width: min(920px, calc(100vw - 3rem));
+}
+
+@media (min-height: 700px) and (max-height: 820px) and (orientation: landscape) {
+  .rehab-entry-shell .rehab-entry-header {
+    margin-bottom: 1rem;
+  }
+
+  .rehab-entry-grid {
+    gap: 0.75rem;
+  }
+
+  .rehab-entry-card {
+    padding: 1rem;
+  }
+}
+
+/* Patient results — calendar / detail split for iPad */
+@media (min-width: 768px) and (max-width: 1366px) {
+  .patient-results-ui .results-calendar-col {
+    flex: 3 1 0%;
+  }
+
+  .patient-results-ui .results-detail-col {
+    flex: 2 1 0%;
+    min-width: 260px;
+  }
+
+  .patient-results-ui .results-day-cell {
+    min-height: 3.25rem;
+  }
+}
+
+/* Portal side panels */
+@media (min-width: 768px) and (max-width: 1366px) {
+  .portal-large-text .portal-detail-panel {
+    width: 360px !important;
+  }
+
+  .portal-large-text .portal-chat-panel {
+    width: 22rem !important;
+    height: min(480px, 70dvh) !important;
+  }
+}
+
+/* Patient chat panel on iPad — 置中對話框 */
+@media (min-width: 768px) and (max-width: 1366px) {
+  .patient-large-text.patient-chat-panel {
+    max-width: min(480px, calc(100vw - 2rem)) !important;
+    max-height: min(600px, calc(100dvh - 4rem)) !important;
+  }
+
+  /* 復健地圖頁 — 頂部與關卡區微調，減少擁擠感 */
+  .patient-header-ipad .patient-header-inner {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+  }
+
+  .patient-map-ui .map-node-area {
+    padding-top: 8%;
+    padding-bottom: 3%;
+  }
+
+  .patient-map-ui .category-strip {
+    padding-bottom: 0.625rem;
+    gap: 0.875rem;
+  }
+
+  .patient-map-ui .category-strip .category-strip-card {
+    min-height: 5.25rem !important;
+    padding: 0.75rem 0.875rem !important;
+  }
+
+  .patient-map-ui .category-strip .category-strip-icon {
+    width: 3.5rem !important;
+    height: 3.5rem !important;
+  }
+
+  .patient-map-ui .category-strip .category-strip-icon-glyph {
+    width: 1.75rem !important;
+    height: 1.75rem !important;
+  }
+
+  .patient-map-ui .category-strip .category-strip-title {
+    font-size: 1.125rem !important;
+  }
+
+  .patient-map-ui .category-strip .category-strip-count {
+    font-size: 1.25rem !important;
+  }
+
+  .patient-map-ui .category-strip .category-strip-bar {
+    height: 0.6875rem !important;
+    margin-top: 0.5rem !important;
+  }
+
+  .patient-shell-nav {
+    padding-top: 0.625rem;
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+}

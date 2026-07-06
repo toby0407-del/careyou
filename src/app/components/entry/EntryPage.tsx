@@ -74,19 +74,19 @@ export function EntryPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="h-screen w-full relative overflow-hidden bg-gradient-to-br from-teal-50/30 via-rose-50/20 to-violet-50/30">
+    <div className="rehab-entry-shell w-full relative overflow-hidden bg-gradient-to-br from-teal-50/30 via-rose-50/20 to-violet-50/30">
       <EntryBackground />
 
-      <div className="relative z-10 h-full flex flex-col items-center justify-center px-6 py-6 overflow-hidden">
+      <div className="relative z-10 h-full flex flex-col items-center justify-center px-6 py-5 overflow-hidden">
         {/* Header */}
-        <div className="text-center mb-6 flex-shrink-0">
-          <div className="flex items-center justify-center mb-3">
+        <div className="rehab-entry-header text-center mb-5 flex-shrink-0">
+          <div className="flex items-center justify-center mb-2">
             <AppBrandHeader />
           </div>
         </div>
 
         {/* Role Cards Grid */}
-        <div className="grid grid-cols-2 gap-4 w-full max-w-5xl flex-shrink-0">
+        <div className="rehab-entry-grid grid grid-cols-2 gap-3 flex-shrink-0">
           {roles.map((role) => {
             const Icon = role.icon;
             return (
@@ -95,28 +95,28 @@ export function EntryPage() {
                 whileHover={{ scale: 1.02, y: -4 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => navigate(role.path)}
-                className={`relative cursor-pointer rounded-2xl border-2 ${role.border} ${role.bg} p-5 group transition-all duration-300 hover:shadow-xl ${role.glow} backdrop-blur-md`}
+                className={`rehab-entry-card relative cursor-pointer rounded-2xl border-2 ${role.border} ${role.bg} p-4 group transition-all duration-300 hover:shadow-xl ${role.glow} backdrop-blur-md`}
               >
-                <div className="flex items-start gap-5">
+                <div className="flex items-start gap-4">
                   <div
-                    className={`${role.iconBg} w-18 h-18 rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0`}
-                    style={{ width: 72, height: 72 }}
+                    className={`${role.iconBg} rounded-2xl flex items-center justify-center shadow-lg flex-shrink-0`}
+                    style={{ width: 64, height: 64 }}
                   >
-                    <Icon className="w-9 h-9 text-white" strokeWidth={2} />
+                    <Icon className="w-8 h-8 text-white" strokeWidth={2} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className={`text-2xl ${role.textColor} block mb-2`} style={{ fontWeight: 800 }}>
+                    <span className={`text-xl ${role.textColor} block mb-1.5`} style={{ fontWeight: 800 }}>
                       {role.label}
                     </span>
-                    <p className={`text-base ${role.textColor} opacity-90 leading-snug`}>
+                    <p className={`text-sm ${role.textColor} opacity-90 leading-snug`}>
                       {role.description}
                     </p>
                   </div>
                 </div>
 
-                <div className="mt-5 flex items-center justify-end">
+                <div className="mt-4 flex items-center justify-end">
                   <div
-                    className={`flex items-center gap-2 bg-gradient-to-r ${role.btnGradient} text-white text-base px-6 py-3 rounded-xl shadow-md`}
+                    className={`flex items-center gap-2 bg-gradient-to-r ${role.btnGradient} text-white text-sm px-5 py-2.5 rounded-xl shadow-md`}
                     style={{ fontWeight: 600 }}
                   >
                     <span>進入</span>
@@ -133,7 +133,7 @@ export function EntryPage() {
         </div>
 
         {/* Footer */}
-        <div className="mt-5 flex items-center gap-5 text-slate-400 text-sm flex-shrink-0">
+        <div className="mt-4 flex items-center gap-4 text-slate-400 text-xs flex-shrink-0">
           <div className="flex items-center gap-2">
             <Wifi className="w-4 h-4" />
             <span>即時連線</span>

@@ -148,24 +148,42 @@ export function PatientHome() {
         : `${completedExercises}/${totalExercises} 項完成`;
 
   return (
-    <div className="patient-large-text patient-shell h-screen flex flex-col overflow-hidden">
+    <div className="patient-large-text patient-shell rehab-app-shell flex flex-col overflow-hidden">
       {/* 精簡頂部列 */}
-      <header className="patient-shell-header flex-shrink-0 border-b shadow-sm">
-        <div className="flex items-center justify-between gap-3 px-4 py-2.5">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
+      <header className="patient-shell-header patient-header-ipad flex-shrink-0 border-b shadow-sm">
+        <div className="patient-header-inner flex items-center justify-between gap-2 px-4 py-2">
+          <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <button
               onClick={() => navigate("/")}
-              className="w-12 h-12 rounded-xl bg-emerald-100/70 hover:bg-emerald-100 flex items-center justify-center flex-shrink-0 transition-colors border border-emerald-100"
+              className="w-11 h-11 rounded-xl bg-emerald-100/70 hover:bg-emerald-100 flex items-center justify-center flex-shrink-0 transition-colors border border-emerald-100"
               aria-label="返回首頁"
             >
-              <ArrowLeft className="w-6 h-6 text-slate-600" />
+              <ArrowLeft className="w-5 h-5 text-slate-600" />
             </button>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap min-w-0">
-                <h1 className="text-slate-800 text-lg whitespace-nowrap" style={{ fontWeight: 800 }}>
+                <h1 className="text-slate-800 text-base whitespace-nowrap" style={{ fontWeight: 800 }}>
                   {greeting}，{patientProfile.name}
                 </h1>
-                {activeTab !== "gallery" && activeTab !== "milestones" && (
+                {activeTab === "tasks" && (
+                  <>
+                    <span
+                      className="flex items-center gap-1 bg-emerald-100/60 text-emerald-800 text-xs px-2.5 py-1 rounded-full whitespace-nowrap border border-emerald-100"
+                      style={{ fontWeight: 600 }}
+                    >
+                      <Clock className="w-3.5 h-3.5" />
+                      {summary.remaining > 0 ? `預計 ${summary.estimatedMinutes} 分` : "已完成"}
+                    </span>
+                    <span
+                      className="flex items-center gap-1 bg-emerald-50 text-emerald-700 text-xs px-2.5 py-1 rounded-full whitespace-nowrap"
+                      style={{ fontWeight: 600 }}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      {completedExercises}/{totalExercises} 項
+                    </span>
+                  </>
+                )}
+                {activeTab !== "gallery" && activeTab !== "milestones" && activeTab !== "tasks" && (
                   <>
                     <span
                       className="flex items-center gap-1.5 bg-emerald-100/60 text-emerald-800 text-xs px-3 py-1.5 rounded-full whitespace-nowrap border border-emerald-100"
@@ -195,44 +213,44 @@ export function PatientHome() {
               </div>
               {activeTab === "gallery" || activeTab === "milestones" ? (
                 <p className="text-slate-400 text-xs truncate mt-0.5">{personalLine}</p>
-              ) : summary.nextExercise && summary.completed < summary.total ? (
+              ) : activeTab !== "tasks" && summary.nextExercise && summary.completed < summary.total ? (
                 <p className="text-slate-400 text-xs truncate mt-0.5">下一項：{summary.nextExercise.name}</p>
               ) : null}
             </div>
           </div>
 
-          <div className="flex items-center gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               type="button"
               onClick={() => setStreakInfoOpen(true)}
-              className="rounded-xl hover:bg-amber-50 p-2 transition-colors"
+              className="rounded-xl hover:bg-amber-50 p-1.5 transition-colors"
               aria-label="查看連續天數"
             >
               <StreakStar days={streakDays} />
             </button>
 
-            <div className="flex items-center gap-3 bg-teal-50 border border-teal-100 rounded-2xl px-4 py-2.5 min-w-[9.5rem]">
-              <div className="flex-1 h-3.5 bg-teal-100 rounded-full overflow-hidden min-w-[4.5rem]">
+            <div className="flex items-center gap-2 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2 min-w-[8.5rem]">
+              <div className="flex-1 h-3 bg-teal-100 rounded-full overflow-hidden min-w-[4rem]">
                 <div className="h-full bg-teal-500 rounded-full transition-all" style={{ width: `${progressPct}%` }} />
               </div>
-              <span className="text-teal-700 text-base tabular-nums min-w-[2.75rem] text-right" style={{ fontWeight: 800 }}>
+              <span className="text-teal-700 text-sm tabular-nums min-w-[2.5rem] text-right" style={{ fontWeight: 800 }}>
                 {progressPct}%
               </span>
             </div>
 
             <NotificationBell
               variant="patient"
-              buttonClassName="w-14 h-14 rounded-2xl bg-emerald-100/70 hover:bg-emerald-100 flex items-center justify-center relative transition-colors border border-emerald-100"
-              iconClassName="w-7 h-7 text-slate-600"
-              badgeClassName="absolute top-2.5 right-2.5 w-3 h-3 bg-red-400 rounded-full ring-2 ring-white"
+              buttonClassName="w-12 h-12 rounded-xl bg-emerald-100/70 hover:bg-emerald-100 flex items-center justify-center relative transition-colors border border-emerald-100"
+              iconClassName="w-6 h-6 text-slate-600"
+              badgeClassName="absolute top-2 right-2 w-2.5 h-2.5 bg-red-400 rounded-full ring-2 ring-white"
             />
             <button
               type="button"
               onClick={() => setProfileOpen(true)}
-              className="w-14 h-14 rounded-2xl bg-teal-600 hover:bg-teal-700 flex items-center justify-center transition-colors"
+              className="w-12 h-12 rounded-xl bg-teal-600 hover:bg-teal-700 flex items-center justify-center transition-colors"
               aria-label="查看個人資料"
             >
-              <User className="w-7 h-7 text-white" />
+              <User className="w-6 h-6 text-white" />
             </button>
           </div>
         </div>
@@ -241,7 +259,7 @@ export function PatientHome() {
       <EncouragementBanner />
 
       {/* 主內容區 */}
-      <main className="flex-1 min-h-0 px-3 pt-1 overflow-hidden">
+      <main className="flex-1 min-h-0 px-3 pt-2.5 pb-0 overflow-hidden">
         <motion.div
           key={activeTab}
           initial={{ opacity: 0, y: 6 }}
@@ -260,11 +278,11 @@ export function PatientHome() {
 
       {/* 底部導覽 — 佔版面流，避免 fixed 被裁切 */}
       <nav
-        className="patient-shell-nav flex-shrink-0 z-40 border-t shadow-[0_-2px_12px_rgba(16,185,129,0.06)] px-2 pt-1 pb-[max(0.5rem,env(safe-area-inset-bottom))]"
+        className="patient-shell-nav flex-shrink-0 z-40 border-t shadow-[0_-2px_12px_rgba(16,185,129,0.06)] px-2 pt-2 pb-[max(0.875rem,env(safe-area-inset-bottom))]"
         role="tablist"
         aria-label="患者端主選單"
       >
-        <div className="grid grid-cols-4 max-w-lg mx-auto">
+        <div className="grid grid-cols-4 rehab-tab-bar">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
@@ -275,12 +293,12 @@ export function PatientHome() {
                 role="tab"
                 aria-selected={active}
                 aria-label={tab.label}
-                className={`flex flex-col items-center gap-0.5 py-2 px-1 transition-colors ${
+                className={`flex flex-col items-center gap-0.5 py-2 px-2 transition-colors ${
                   active ? "text-teal-600" : "text-slate-400 hover:text-slate-600"
                 }`}
               >
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                  className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
                     active
                       ? "bg-teal-600 text-white shadow-md shadow-teal-200"
                       : "bg-transparent"
@@ -297,7 +315,7 @@ export function PatientHome() {
         </div>
       </nav>
 
-      <AiCompanionWidget patientName={patientProfile.name} />
+      <AiCompanionWidget patientName={patientProfile.name} resetKey={activeTab} />
 
       <PatientProfileDialog
         open={profileOpen}

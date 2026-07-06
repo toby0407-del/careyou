@@ -1,57 +1,57 @@
-/* 家屬端 / 醫師端 — 字體放大 1.5 倍（較先前 2 倍縮小 25%） */
+/* 家屬端 / 醫師端 — 字體依 --portal-scale 放大（iPad 預設 1.2×） */
 .portal-large-text {
-  font-size: 24px;
+  font-size: calc(16px * var(--portal-scale));
   line-height: 1.45;
 }
 
 .portal-large-text .text-\[10px\] {
-  font-size: 15px !important;
+  font-size: calc(10px * var(--portal-scale)) !important;
   line-height: 1.4 !important;
 }
 
 .portal-large-text .text-\[11px\] {
-  font-size: 16.5px !important;
+  font-size: calc(11px * var(--portal-scale)) !important;
   line-height: 1.4 !important;
 }
 
 .portal-large-text .text-xs {
-  font-size: 18px !important;
+  font-size: calc(12px * var(--portal-scale)) !important;
   line-height: 1.4 !important;
 }
 
 .portal-large-text .text-sm {
-  font-size: 21px !important;
+  font-size: calc(14px * var(--portal-scale)) !important;
   line-height: 1.45 !important;
 }
 
 .portal-large-text .text-base {
-  font-size: 24px !important;
+  font-size: calc(16px * var(--portal-scale)) !important;
   line-height: 1.5 !important;
 }
 
 .portal-large-text .text-lg {
-  font-size: 27px !important;
+  font-size: calc(18px * var(--portal-scale)) !important;
   line-height: 1.45 !important;
 }
 
 .portal-large-text .text-xl {
-  font-size: 30px !important;
+  font-size: calc(20px * var(--portal-scale)) !important;
   line-height: 1.4 !important;
 }
 
 .portal-large-text .text-2xl {
-  font-size: 36px !important;
+  font-size: calc(24px * var(--portal-scale)) !important;
   line-height: 1.3 !important;
 }
 
 /* 圖表區標題 */
 .portal-large-text .portal-chart-title {
-  font-size: 24px !important;
+  font-size: calc(16px * var(--portal-scale)) !important;
   line-height: 1.35 !important;
 }
 
 .portal-large-text .portal-chart-sub {
-  font-size: 19.5px !important;
+  font-size: calc(13px * var(--portal-scale)) !important;
   line-height: 1.4 !important;
 }
 
@@ -63,16 +63,16 @@
 /* 客服視窗配合大字 */
 .portal-large-text .portal-chat-panel {
   width: 26rem !important;
-  height: 520px !important;
+  height: min(520px, 75dvh) !important;
 }
 
 /* 家屬儀表板圖表區 — 緊湊標題以塞入一屏 */
 .portal-large-text .family-dashboard-charts .portal-chart-title {
-  font-size: 18px !important;
+  font-size: calc(12px * var(--portal-scale)) !important;
   line-height: 1.25 !important;
 }
 
 .portal-large-text .family-dashboard-charts .portal-chart-sub {
-  font-size: 13.5px !important;
+  font-size: calc(9px * var(--portal-scale)) !important;
   line-height: 1.3 !important;
 }

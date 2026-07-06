@@ -20,9 +20,10 @@ import {
   Target,
   Star,
   TrendingUp,
-  BarChart3,
   CalendarDays,
   Dumbbell,
+  CheckCircle2,
+  Circle,
 } from "lucide-react";
 import {
   getCompletionRate,
@@ -30,6 +31,7 @@ import {
   completionLegend,
   type DayResult,
 } from "../../data/dailyResults";
+import { allExercises } from "../../data/patientExercises";
 import {
   useLiveDailyResults,
   useLiveExercises,
@@ -45,10 +47,43 @@ import {
   Tooltip,
   Cell,
 } from "recharts";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 
 const WEEKDAYS = ["日", "一", "二", "三", "四", "五", "六"];
 
+interface DayExerciseStatus {
+  name: string;
+  level: number;
+  completed: boolean;
+  quality?: number;
+  stars?: number;
+  durationMin?: number;
+}
+
+function buildDayExerciseStatuses(day: DayResult): DayExerciseStatus[] {
+  const doneByName = new Map(day.exercises.map((e) => [e.name, e]));
+  return allExercises.map((ex) => {
+    const done = doneByName.get(ex.name);
+    return {
+      name: ex.name,
+      level: ex.level,
+      completed: Boolean(done),
+      quality: done?.quality,
+      stars: done?.stars,
+      durationMin: done?.durationMin,
+    };
+  });
+}
+
 function DayDetailPanel({ day }: { day: DayResult }) {
+  const [completionOpen, setCompletionOpen] = useState(false);
+  const exerciseStatuses = useMemo(() => buildDayExerciseStatuses(day), [day]);
   const rate = getCompletionRate(day);
   const color = getCompletionColor(rate);
   const chartData = day.exercises.map((ex) => ({
@@ -56,9 +91,9 @@ function DayDetailPanel({ day }: { day: DayResult }) {
     quality: ex.quality,
     stars: ex.stars,
   }));
-  const yAxisWidth = Math.max(88, ...chartData.map((d) => d.name.length * 14 + 8));
-  const chartTick = { fontSize: 11, fill: "#64748b" };
-  const chartTickMuted = { fontSize: 11, fill: "#94a3b8" };
+  const yAxisWidth = Math.max(120, ...chartData.map((d) => d.name.length * 20 + 16));
+  const chartTick = { fontSize: 18, fill: "#334155", fontWeight: 600 };
+  const chartTickMuted = { fontSize: 15, fill: "#94a3b8" };
 
   return (
     <motion.div
@@ -90,16 +125,13 @@ function DayDetailPanel({ day }: { day: DayResult }) {
       {/* Stats row */}
       <div className="grid grid-cols-3 gap-2 flex-shrink-0">
         {[
-          { icon: Dumbbell, label: "完成項目", value: `${day.completed}/${day.total}` },
-          { icon: Target, label: "動作品質", value: `${day.accuracy}%` },
-          { icon: Clock, label: "訓練時間", value: `${day.durationMin} 分` },
+          { icon: Dumbbell, label: "完成項目", value: `${day.completed}/${day.total}`, clickable: true },
+          { icon: Target, label: "動作品質", value: `${day.accuracy}%`, clickable: false },
+          { icon: Clock, label: "訓練時間", value: `${day.durationMin} 分`, clickable: false },
         ].map((s) => {
           const Icon = s.icon;
-          return (
-            <div
-              key={s.label}
-              className="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center gap-2"
-            >
+          const inner = (
+            <>
               <Icon className="w-4 h-4 text-teal-500 flex-shrink-0" />
               <div>
                 <p className="text-base text-slate-800 leading-none" style={{ fontWeight: 800 }}>
@@ -107,22 +139,110 @@ function DayDetailPanel({ day }: { day: DayResult }) {
                 </p>
                 <p className="text-[10px] text-slate-400">{s.label}</p>
               </div>
+            </>
+          );
+          if (s.clickable) {
+            return (
+              <button
+                key={s.label}
+                type="button"
+                onClick={() => setCompletionOpen(true)}
+                className="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center gap-2 text-left hover:border-teal-200 hover:bg-teal-50/60 transition-colors"
+                aria-label="查看當日各項目完成狀態"
+              >
+                {inner}
+              </button>
+            );
+          }
+          return (
+            <div
+              key={s.label}
+              className="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center gap-2"
+            >
+              {inner}
             </div>
           );
         })}
       </div>
 
+      <Dialog open={completionOpen} onOpenChange={setCompletionOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl border-emerald-100 p-0 overflow-hidden">
+          <DialogHeader className="px-5 pt-5 pb-3 border-b border-slate-100 text-left">
+            <DialogTitle className="text-slate-800 text-base" style={{ fontWeight: 800 }}>
+              當日完成項目 · {day.completed}/{day.total}
+            </DialogTitle>
+            <DialogDescription className="text-slate-500 text-xs">
+              {format(parseISO(day.date), "yyyy年 M月 d日 EEEE", { locale: zhTW })}
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="px-4 py-3 space-y-2 max-h-[min(60vh,360px)] overflow-y-auto">
+            {exerciseStatuses.map((ex) => (
+              <li
+                key={ex.name}
+                className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border ${
+                  ex.completed
+                    ? "bg-emerald-50/80 border-emerald-100"
+                    : "bg-slate-50 border-slate-100"
+                }`}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  {ex.completed ? (
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" aria-hidden />
+                  ) : (
+                    <Circle className="w-5 h-5 text-slate-300 flex-shrink-0" aria-hidden />
+                  )}
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded flex-shrink-0"
+                        style={{ fontWeight: 700 }}
+                      >
+                        Lv.{ex.level}
+                      </span>
+                      <span className="text-sm text-slate-800 truncate" style={{ fontWeight: 600 }}>
+                        {ex.name}
+                      </span>
+                    </div>
+                    <p className={`text-[10px] mt-0.5 ${ex.completed ? "text-emerald-600" : "text-slate-400"}`}>
+                      {ex.completed ? "已完成" : "尚未完成"}
+                    </p>
+                  </div>
+                </div>
+                {ex.completed && ex.quality != null && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs text-slate-500">{ex.quality}%</span>
+                    <div className="flex gap-px">
+                      {[1, 2, 3].map((s) => (
+                        <Star
+                          key={s}
+                          className={`w-3 h-3 ${
+                            ex.stars != null && s <= ex.stars
+                              ? "text-amber-400 fill-amber-400"
+                              : "text-slate-200"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
+
       {/* Quality chart */}
-      <div className="bg-white rounded-xl border border-slate-100 p-3 flex-1 min-h-0 flex flex-col">
-        <p className="results-text-sm text-slate-700 mb-2 flex-shrink-0" style={{ fontWeight: 700 }}>
+      <div className="bg-white rounded-xl border border-slate-100 p-4 flex-1 min-h-0 flex flex-col">
+        <p className="results-text-sm text-slate-700 mb-3 flex-shrink-0" style={{ fontWeight: 700 }}>
           各項目動作品質
         </p>
-        <div className="flex-1 min-h-[100px]">
+        <div className="flex-1 min-h-[200px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={chartData}
               layout="vertical"
-              margin={{ left: 4, right: 12, top: 4, bottom: 4 }}
+              margin={{ left: 8, right: 16, top: 8, bottom: 8 }}
+              barCategoryGap="20%"
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={false} />
               <XAxis type="number" domain={[0, 100]} tick={chartTickMuted} axisLine={false} />
@@ -134,8 +254,8 @@ function DayDetailPanel({ day }: { day: DayResult }) {
                 axisLine={false}
                 tickLine={false}
               />
-              <Tooltip contentStyle={{ fontSize: 14, borderRadius: 8 }} formatter={(v) => [`${v}%`, "品質"]} />
-              <Bar dataKey="quality" radius={[0, 4, 4, 0]} barSize={12}>
+              <Tooltip contentStyle={{ fontSize: 16, borderRadius: 8 }} formatter={(v) => [`${v}%`, "品質"]} />
+              <Bar dataKey="quality" radius={[0, 6, 6, 0]} barSize={28}>
                 {chartData.map((entry, i) => (
                   <Cell
                     key={i}
@@ -146,36 +266,6 @@ function DayDetailPanel({ day }: { day: DayResult }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
-
-      {/* Exercise list */}
-      <div className="flex-shrink-0 space-y-1.5 max-h-[28%] overflow-y-auto">
-        {day.exercises.map((ex) => (
-          <div
-            key={ex.name}
-            className="flex items-center justify-between py-2 px-3 rounded-lg bg-slate-50 border border-slate-100"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded" style={{ fontWeight: 700 }}>
-                Lv.{ex.level}
-              </span>
-              <span className="text-sm text-slate-700 truncate" style={{ fontWeight: 600 }}>
-                {ex.name}
-              </span>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-xs text-slate-500">{ex.quality}%</span>
-              <div className="flex gap-px">
-                {[1, 2, 3].map((s) => (
-                  <Star
-                    key={s}
-                    className={`w-3 h-3 ${s <= ex.stars ? "text-amber-400 fill-amber-400" : "text-slate-200"}`}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        ))}
       </div>
     </motion.div>
   );
@@ -252,22 +342,9 @@ export function PatientResults() {
     <div className="patient-results-ui h-full flex gap-2 overflow-hidden">
       <div className="flex-1 min-w-0 flex gap-3 overflow-hidden">
       {/* Left: Calendar */}
-      <div className="flex-[3] flex flex-col min-w-0 bg-white/85 rounded-2xl border border-emerald-100 p-4 overflow-hidden shadow-sm">
+      <div className="flex-[3] results-calendar-col flex flex-col min-w-0 bg-white/85 rounded-2xl border border-emerald-100 p-4 overflow-hidden shadow-sm">
         {/* Month nav */}
-        <div className="flex items-center justify-between mb-3 flex-shrink-0">
-          <div className="flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-teal-500" />
-            <div>
-              <p className="text-slate-800 text-base leading-none" style={{ fontWeight: 800 }}>
-                復健完成月曆
-              </p>
-              {monthStats && (
-                <p className="text-slate-400 text-[10px] mt-0.5">
-                  本月訓練 {monthStats.trained} 天 · 平均完成 {monthStats.avgRate}% · 品質 {monthStats.avgQuality}%
-                </p>
-              )}
-            </div>
-          </div>
+        <div className="flex items-center justify-center mb-3 flex-shrink-0">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
@@ -327,7 +404,7 @@ export function PatientResults() {
                 whileTap={hasData ? { scale: 0.97 } : {}}
                 onClick={() => hasData && setSelectedDate(dateStr)}
                 disabled={!hasData}
-                className={`relative rounded-xl flex flex-col items-center justify-center transition-all border-2 min-h-[52px] ${
+                className={`results-day-cell relative rounded-xl flex flex-col items-center justify-center transition-all border-2 min-h-[52px] ${
                   isSelected
                     ? "border-teal-500 shadow-md ring-2 ring-teal-100"
                     : hasData
@@ -396,7 +473,7 @@ export function PatientResults() {
       </div>
 
       {/* Right: Detail panel */}
-      <div className="flex-[2] min-w-[280px] bg-white/85 rounded-2xl border border-emerald-100 p-4 overflow-hidden shadow-sm">
+      <div className="flex-[2] results-detail-col min-w-[280px] bg-white/85 rounded-2xl border border-emerald-100 p-4 overflow-hidden shadow-sm">
         <AnimatePresence mode="wait">
           {selectedDay ? (
             <DayDetailPanel key={selectedDay.date} day={selectedDay} />

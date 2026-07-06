@@ -5,14 +5,22 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "motion/react";
-import { X, Send, Volume2, VolumeX, Sparkles } from "lucide-react";
+import { X, Send, Volume2, VolumeX, Sparkles, Bot, Mic } from "lucide-react";
 import { POSE_IMAGE } from "../../data/companionMessages";
 import {
   buildProactiveGreeting,
   replyTo,
+  replyToAsync,
   QUICK_QUESTIONS,
   type AiReply,
+  type ChatTurn,
 } from "../../lib/companionAI";
+import { LLM_HISTORY_TURNS, CHAT_STORAGE_LIMIT } from "../../lib/companionConfig";
+import {
+  ensureCompanionLlm,
+  isCompanionLlmReady,
+  isWebGpuSupported,
+} from "../../lib/companionLLM";
 import { markAllEncouragementsRead } from "../../data/encouragements";
 import {
   speak,
@@ -21,6 +29,10 @@ import {
   setVoiceEnabled as persistVoiceEnabled,
   isSpeechSupported,
 } from "../../lib/speech";
+import {
+  isSpeechRecognitionSupported,
+  listenOnce,
+} from "../../lib/speechRecognition";
 
 interface AiMessage {
   id: string;
@@ -30,51 +42,62 @@ interface AiMessage {
 }
 
 const CHAT_KEY = "rehabbridge_companion_chat";
-const POS_KEY = "rehabbridge_companion_pos";
-const BTN_SIZE = 72;
+const BTN_SIZE = 68;
 const EDGE_MARGIN = 16;
+const HINT_GAP = 8;
+/** 提示文字預留寬度，避免貼邊時被裁切 */
+const HINT_RESERVE = 160;
 /** 預設留給底部導覽 + safe area 的空間 */
-const DEFAULT_BOTTOM_CLEARANCE = 84;
+const DEFAULT_BOTTOM_CLEARANCE = 102;
+/** 頂部至少避開狀態列（無法量測 main 時的後備） */
+const TOP_CLEARANCE = 44;
+/** 對齊主內容區左上（地圖區）的內距 */
+const MAIN_INSET = 12;
 
-function clampPosition(x: number, y: number): { x: number; y: number } {
-  if (typeof window === "undefined") return { x, y };
-  const maxX = window.innerWidth - BTN_SIZE - EDGE_MARGIN;
-  const maxY = window.innerHeight - BTN_SIZE - EDGE_MARGIN;
-  return {
-    x: Math.min(Math.max(EDGE_MARGIN, x), maxX),
-    y: Math.min(Math.max(EDGE_MARGIN, y), maxY),
-  };
+function measureMainAnchor(): { x: number; y: number } | null {
+  if (typeof document === "undefined") return null;
+  const mainEl = document.querySelector(".patient-shell main");
+  if (!mainEl) return null;
+  const rect = mainEl.getBoundingClientRect();
+  return { x: rect.left + MAIN_INSET, y: rect.top + MAIN_INSET };
 }
 
 function getDefaultPosition(): { x: number; y: number } {
-  if (typeof window === "undefined") return { x: EDGE_MARGIN, y: EDGE_MARGIN };
-  return clampPosition(
-    window.innerWidth - BTN_SIZE - EDGE_MARGIN,
-    window.innerHeight - BTN_SIZE - DEFAULT_BOTTOM_CLEARANCE
+  const anchor = measureMainAnchor();
+  if (anchor) return clampPosition(anchor.x, anchor.y);
+  if (typeof window === "undefined") return { x: EDGE_MARGIN, y: TOP_CLEARANCE + 80 };
+  return clampPosition(EDGE_MARGIN, TOP_CLEARANCE + 80);
+}
+
+function getBottomClearance(): number {
+  if (typeof window === "undefined") return DEFAULT_BOTTOM_CLEARANCE;
+  const probe = document.createElement("div");
+  probe.style.cssText = "position:fixed;bottom:0;height:0;padding-bottom:env(safe-area-inset-bottom);visibility:hidden;";
+  document.body.appendChild(probe);
+  const safeBottom = parseFloat(getComputedStyle(probe).paddingBottom) || 0;
+  probe.remove();
+  return DEFAULT_BOTTOM_CLEARANCE + safeBottom;
+}
+
+function clampPosition(x: number, y: number): { x: number; y: number } {
+  if (typeof window === "undefined") return { x, y };
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  const bottomClearance = getBottomClearance();
+  let cx = Math.min(Math.max(EDGE_MARGIN, x), w - BTN_SIZE - EDGE_MARGIN);
+  const cy = Math.min(
+    Math.max(TOP_CLEARANCE, y),
+    h - BTN_SIZE - bottomClearance
   );
-}
 
-function loadPosition(): { x: number; y: number } {
-  try {
-    const raw = localStorage.getItem(POS_KEY);
-    if (raw) {
-      const p = JSON.parse(raw) as { x?: number; y?: number };
-      if (typeof p.x === "number" && typeof p.y === "number") {
-        return clampPosition(p.x, p.y);
-      }
-    }
-  } catch {
-    /* ignore */
+  const onRight = cx + BTN_SIZE / 2 > w / 2;
+  if (onRight) {
+    cx = Math.max(cx, HINT_RESERVE + HINT_GAP);
+  } else {
+    cx = Math.min(cx, w - BTN_SIZE - HINT_RESERVE - HINT_GAP - EDGE_MARGIN);
   }
-  return getDefaultPosition();
-}
 
-function savePosition(pos: { x: number; y: number }) {
-  try {
-    localStorage.setItem(POS_KEY, JSON.stringify(pos));
-  } catch {
-    /* ignore */
-  }
+  return { x: cx, y: cy };
 }
 
 function getTime() {
@@ -96,24 +119,37 @@ function loadChat(): AiMessage[] {
 
 function saveChat(messages: AiMessage[]) {
   try {
-    localStorage.setItem(CHAT_KEY, JSON.stringify(messages.slice(-50)));
+    localStorage.setItem(CHAT_KEY, JSON.stringify(messages.slice(-CHAT_STORAGE_LIMIT)));
   } catch {
     /* ignore */
   }
 }
 
-export function AiCompanionWidget({ patientName }: { patientName: string }) {
+export function AiCompanionWidget({
+  patientName,
+  resetKey,
+}: {
+  patientName: string;
+  /** 切換分頁時，小伴回到主內容區（地圖）左上角 */
+  resetKey?: string;
+}) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState(() => loadPosition());
+  const [pos, setPos] = useState(() => getDefaultPosition());
   const [messages, setMessages] = useState<AiMessage[]>(() => loadChat());
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>(QUICK_QUESTIONS);
   const [voiceOn, setVoiceOn] = useState(() => getVoiceEnabled());
   const [isDragging, setIsDragging] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [listenError, setListenError] = useState<string | null>(null);
+  const [llmReady, setLlmReady] = useState(false);
+  const [llmLoading, setLlmLoading] = useState(false);
+  const [llmLoadText, setLlmLoadText] = useState("");
   const greetedRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listeningRef = useRef(false);
   const dragRef = useRef({
     active: false,
     moved: false,
@@ -129,10 +165,44 @@ export function AiCompanionWidget({ patientName }: { patientName: string }) {
   }, [messages]);
 
   useEffect(() => {
-    const onResize = () => setPos((p) => clampPosition(p.x, p.y));
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
+    const syncPosition = () => {
+      if (resetKey === "tasks") {
+        setPos(getDefaultPosition());
+      } else {
+        setPos((p) => clampPosition(p.x, p.y));
+      }
+    };
+    syncPosition();
+    requestAnimationFrame(syncPosition);
+    window.addEventListener("resize", syncPosition);
+    return () => window.removeEventListener("resize", syncPosition);
+  }, [resetKey]);
+
+  /* 開啟對話時預載本機 LLM */
+  useEffect(() => {
+    if (!open) return;
+    if (!isWebGpuSupported()) {
+      setLlmReady(false);
+      setLlmLoading(false);
+      return;
+    }
+    if (isCompanionLlmReady()) {
+      setLlmReady(true);
+      setLlmLoading(false);
+      return;
+    }
+    setLlmLoading(true);
+    setLlmLoadText("正在準備本機 AI…");
+    ensureCompanionLlm((p) => {
+      setLlmLoadText(p.text || "正在下載開源語言模型…");
+    })
+      .then((eng) => {
+        setLlmReady(!!eng);
+      })
+      .finally(() => {
+        setLlmLoading(false);
+      });
+  }, [open]);
 
   const handleFabPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
     if (open) return;
@@ -170,10 +240,7 @@ export function AiCompanionWidget({ patientName }: { patientName: string }) {
       /* ignore */
     }
     if (d.moved) {
-      setPos((p) => {
-        savePosition(p);
-        return p;
-      });
+      setPos((p) => clampPosition(p.x, p.y));
       return;
     }
     setOpen((v) => !v);
@@ -184,7 +251,6 @@ export function AiCompanionWidget({ patientName }: { patientName: string }) {
   useEffect(() => {
     if (open) {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-      setTimeout(() => inputRef.current?.focus(), 300);
     }
   }, [open, messages, isTyping]);
 
@@ -222,7 +288,7 @@ export function AiCompanionWidget({ patientName }: { patientName: string }) {
     return () => clearTimeout(timer);
   }, [open, patientName, pushAiReply]);
 
-  const sendText = (raw: string) => {
+  const sendText = async (raw: string) => {
     const text = raw.trim();
     if (!text || isTyping) return;
     setMessages((prev) => [
@@ -231,10 +297,22 @@ export function AiCompanionWidget({ patientName }: { patientName: string }) {
     ]);
     setInput("");
     setIsTyping(true);
-    setTimeout(() => {
-      setIsTyping(false);
+
+    const history: ChatTurn[] = messages.slice(-LLM_HISTORY_TURNS).map((m) => ({
+      role: m.sender === "user" ? "user" : "assistant",
+      content: m.text,
+    }));
+
+    try {
+      const reply = await replyToAsync(text, patientName, history, (p) => {
+        if (p.text) setLlmLoadText(p.text);
+      });
+      pushAiReply(reply);
+    } catch {
       pushAiReply(replyTo(text, patientName));
-    }, 700 + Math.random() * 500);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   const toggleVoice = () => {
@@ -244,254 +322,344 @@ export function AiCompanionWidget({ patientName }: { patientName: string }) {
     if (!next) stopSpeaking();
   };
 
+  const toggleListen = async () => {
+    if (isTyping) return;
+    if (listeningRef.current) {
+      listeningRef.current = false;
+      setIsListening(false);
+      return;
+    }
+    if (!isSpeechRecognitionSupported()) {
+      setListenError("此裝置不支援語音輸入，請改用打字");
+      return;
+    }
+    setListenError(null);
+    listeningRef.current = true;
+    setIsListening(true);
+    try {
+      const text = await listenOnce({
+        onInterim: (partial) => setInput(partial),
+      });
+      if (listeningRef.current) {
+        setInput(text);
+        sendText(text);
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "語音辨識失敗";
+      setListenError(msg);
+    } finally {
+      listeningRef.current = false;
+      setIsListening(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!open) {
+      listeningRef.current = false;
+      setIsListening(false);
+      setListenError(null);
+    }
+  }, [open]);
+
   const widget = (
     <>
+      {/* 全螢幕對話框 — 置中顯示，不受浮動按鈕位置影響 */}
       <AnimatePresence>
         {open && (
-          <motion.div
-            key="ai-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 z-[9998] bg-black/20"
-          >
-            <button
-              type="button"
-              className="absolute inset-0 w-full h-full cursor-default"
-              aria-label="關閉小伴對話"
-              onClick={() => setOpen(false)}
-            />
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <>
+            <motion.div
+              key="ai-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-[9998] bg-black/40"
+            >
+              <button
+                type="button"
+                className="absolute inset-0 w-full h-full cursor-default"
+                aria-label="關閉小伴對話"
+                onClick={() => setOpen(false)}
+              />
+            </motion.div>
 
-      <div
-        className={`fixed z-[9999] flex flex-col gap-3 select-none ${panelAlignEnd ? "items-end" : "items-start"}`}
-        style={{ left: pos.x, top: pos.y }}
-      >
-        <AnimatePresence>
-          {open && (
             <motion.div
               key="ai-panel"
-              initial={{ opacity: 0, scale: 0.9, y: 16 }}
+              initial={{ opacity: 0, scale: 0.92, y: 24 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 16 }}
-              transition={{ type: "spring", damping: 22, stiffness: 320 }}
-              className="patient-large-text patient-chat-panel w-[420px] max-w-[calc(100vw-3rem)] bg-white rounded-3xl shadow-2xl border border-teal-100 overflow-hidden flex flex-col mb-3"
-              role="dialog"
-              aria-label="小伴 AI 陪伴對話"
+              exit={{ opacity: 0, scale: 0.92, y: 24 }}
+              transition={{ type: "spring", damping: 24, stiffness: 320 }}
+              className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none"
             >
-              {/* Header */}
-              <div className="bg-gradient-to-r from-teal-500 to-emerald-500 px-4 py-3 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-white/90 border-2 border-white overflow-hidden flex-shrink-0">
-                    <img
-                      src={POSE_IMAGE.greet}
-                      alt=""
-                      className="w-full h-full object-cover object-top scale-[1.6] translate-y-2"
-                      aria-hidden
-                    />
-                  </div>
-                  <div>
-                    <p className="text-white text-base leading-tight" style={{ fontWeight: 800 }}>
-                      小伴 · AI 陪伴
-                    </p>
-                    <div className="flex items-center gap-1.5">
-                      <Sparkles className="w-3 h-3 text-amber-200" />
-                      <span className="text-white/85 text-xs">本機運行 · 無需網路</span>
+              <div
+                className="patient-large-text patient-chat-panel pointer-events-auto w-full max-w-[min(480px,calc(100vw-2rem))] bg-white rounded-3xl shadow-2xl border border-teal-100 overflow-hidden flex flex-col max-h-[min(640px,calc(100dvh-4rem))]"
+                role="dialog"
+                aria-modal="true"
+                aria-label="小伴 AI 陪伴對話"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header */}
+                <div className="bg-gradient-to-r from-teal-500 to-emerald-500 px-4 py-3 flex items-center justify-between flex-shrink-0">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-full bg-white/90 border-2 border-white overflow-hidden flex-shrink-0">
+                      <img
+                        src={POSE_IMAGE.greet}
+                        alt=""
+                        className="w-full h-full object-cover object-top scale-[1.6] translate-y-2"
+                        aria-hidden
+                      />
+                    </div>
+                    <div>
+                      <p className="text-white text-base leading-tight" style={{ fontWeight: 800 }}>
+                        小伴 · AI 陪伴
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        <Sparkles className="w-3 h-3 text-amber-200" />
+                        <span className="text-white/85 text-xs">
+                          {llmLoading
+                            ? llmLoadText || "正在載入本機 AI…"
+                            : llmReady
+                              ? "本機 LLM · 可自由聊天"
+                              : isWebGpuSupported()
+                                ? "智慧陪伴 · 離線規則引擎"
+                                : "本機運行 · 無需網路"}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {isSpeechSupported() && (
+                  <div className="flex items-center gap-2">
+                    {isSpeechSupported() && (
+                      <button
+                        onClick={toggleVoice}
+                        className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+                        aria-label={voiceOn ? "關閉語音朗讀" : "開啟語音朗讀"}
+                        aria-pressed={voiceOn}
+                        title={voiceOn ? "語音朗讀：開" : "語音朗讀：關"}
+                      >
+                        {voiceOn ? (
+                          <Volume2 className="w-4 h-4 text-white" />
+                        ) : (
+                          <VolumeX className="w-4 h-4 text-white/60" />
+                        )}
+                      </button>
+                    )}
                     <button
-                      onClick={toggleVoice}
+                      onClick={() => setOpen(false)}
                       className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-                      aria-label={voiceOn ? "關閉語音朗讀" : "開啟語音朗讀"}
-                      aria-pressed={voiceOn}
-                      title={voiceOn ? "語音朗讀：開" : "語音朗讀：關"}
+                      aria-label="關閉小伴"
                     >
-                      {voiceOn ? (
-                        <Volume2 className="w-4 h-4 text-white" />
-                      ) : (
-                        <VolumeX className="w-4 h-4 text-white/60" />
-                      )}
+                      <X className="w-4 h-4 text-white" />
                     </button>
-                  )}
-                  <button
-                    onClick={() => setOpen(false)}
-                    className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
-                    aria-label="關閉小伴"
-                  >
-                    <X className="w-4 h-4 text-white" />
-                  </button>
+                  </div>
                 </div>
-              </div>
 
-              {/* Messages */}
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-gradient-to-b from-teal-50/40 to-white min-h-[280px] max-h-[46vh]">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
-                  >
-                    {msg.sender === "ai" && (
-                      <div className="w-8 h-8 rounded-full bg-teal-100 border border-teal-200 overflow-hidden flex-shrink-0 mr-2 mt-0.5">
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-gradient-to-b from-teal-50/40 to-white min-h-[240px]">
+                  {messages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      {msg.sender === "ai" && (
+                        <div className="w-8 h-8 rounded-full bg-teal-100 border border-teal-200 overflow-hidden flex-shrink-0 mr-2 mt-0.5">
+                          <img
+                            src={POSE_IMAGE.cheer}
+                            alt=""
+                            className="w-full h-full object-cover object-top scale-[1.6] translate-y-1.5"
+                            aria-hidden
+                          />
+                        </div>
+                      )}
+                      <div className="max-w-[80%]">
+                        <div
+                          className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
+                            msg.sender === "user"
+                              ? "bg-teal-500 text-white rounded-tr-sm"
+                              : "bg-white text-slate-700 rounded-tl-sm shadow-sm border border-teal-100/70"
+                          }`}
+                        >
+                          {msg.text}
+                        </div>
+                        <p
+                          className={`text-xs text-slate-400 mt-1 ${
+                            msg.sender === "user" ? "text-right" : "text-left"
+                          }`}
+                        >
+                          {msg.time}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+
+                  {isTyping && (
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-full bg-teal-100 border border-teal-200 overflow-hidden">
                         <img
-                          src={POSE_IMAGE.cheer}
+                          src={POSE_IMAGE.tip}
                           alt=""
                           className="w-full h-full object-cover object-top scale-[1.6] translate-y-1.5"
                           aria-hidden
                         />
                       </div>
-                    )}
-                    <div className="max-w-[80%]">
-                      <div
-                        className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
-                          msg.sender === "user"
-                            ? "bg-teal-500 text-white rounded-tr-sm"
-                            : "bg-white text-slate-700 rounded-tl-sm shadow-sm border border-teal-100/70"
-                        }`}
-                      >
-                        {msg.text}
+                      <div className="bg-white border border-teal-100 shadow-sm px-3 py-2.5 rounded-2xl rounded-tl-sm flex gap-1">
+                        {[0, 1, 2].map((i) => (
+                          <motion.div
+                            key={i}
+                            className="w-2 h-2 bg-teal-400 rounded-full"
+                            animate={{ y: [0, -4, 0] }}
+                            transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+                          />
+                        ))}
                       </div>
-                      <p
-                        className={`text-xs text-slate-400 mt-1 ${
-                          msg.sender === "user" ? "text-right" : "text-left"
-                        }`}
-                      >
-                        {msg.time}
-                      </p>
                     </div>
-                  </div>
-                ))}
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
 
-                {isTyping && (
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-full bg-teal-100 border border-teal-200 overflow-hidden">
-                      <img
-                        src={POSE_IMAGE.tip}
-                        alt=""
-                        className="w-full h-full object-cover object-top scale-[1.6] translate-y-1.5"
-                        aria-hidden
-                      />
-                    </div>
-                    <div className="bg-white border border-teal-100 shadow-sm px-3 py-2.5 rounded-2xl rounded-tl-sm flex gap-1">
-                      {[0, 1, 2].map((i) => (
-                        <motion.div
-                          key={i}
-                          className="w-2 h-2 bg-teal-400 rounded-full"
-                          animate={{ y: [0, -4, 0] }}
-                          transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-                        />
-                      ))}
-                    </div>
+                {/* Quick suggestions */}
+                {!isTyping && suggestions.length > 0 && (
+                  <div className="px-4 py-2 flex flex-wrap gap-2 border-t border-teal-50 bg-white flex-shrink-0">
+                    {suggestions.map((q) => (
+                      <button
+                        key={q}
+                        onClick={() => sendText(q)}
+                        className="px-3.5 py-2 rounded-full bg-teal-50 border border-teal-100 text-teal-700 text-xs hover:bg-teal-100 transition-colors"
+                        style={{ fontWeight: 700 }}
+                      >
+                        {q}
+                      </button>
+                    ))}
                   </div>
                 )}
-                <div ref={messagesEndRef} />
-              </div>
 
-              {/* Quick suggestions */}
-              {!isTyping && suggestions.length > 0 && (
-                <div className="px-4 py-2 flex flex-wrap gap-2 border-t border-teal-50 bg-white">
-                  {suggestions.map((q) => (
-                    <button
-                      key={q}
-                      onClick={() => sendText(q)}
-                      className="px-3.5 py-2 rounded-full bg-teal-50 border border-teal-100 text-teal-700 text-xs hover:bg-teal-100 transition-colors"
-                      style={{ fontWeight: 700 }}
+                {/* Input */}
+                <div className="px-3 py-3 border-t border-teal-50 bg-white flex-shrink-0">
+                  {listenError && (
+                    <p className="text-xs text-rose-500 mb-2 px-1" role="alert">
+                      {listenError}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={input}
+                      onChange={(e) => {
+                        setInput(e.target.value);
+                        if (listenError) setListenError(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          sendText(input);
+                        }
+                      }}
+                      placeholder={isListening ? "正在聽你說話…" : "跟小伴說說話..."}
+                      aria-label="輸入訊息給小伴"
+                      disabled={isListening}
+                      className="flex-1 bg-slate-100 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-teal-300 transition-all disabled:opacity-70"
+                    />
+                    {isSpeechRecognitionSupported() && (
+                      <motion.button
+                        type="button"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={toggleListen}
+                        disabled={isTyping}
+                        aria-label={isListening ? "停止語音輸入" : "語音輸入"}
+                        aria-pressed={isListening}
+                        className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors shadow-md ${
+                          isListening
+                            ? "bg-rose-500 text-white animate-pulse"
+                            : "bg-teal-50 border border-teal-200 text-teal-600 hover:bg-teal-100"
+                        } disabled:opacity-40`}
+                      >
+                        <Mic className="w-5 h-5" />
+                      </motion.button>
+                    )}
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => sendText(input)}
+                      disabled={!input.trim() || isListening}
+                      aria-label="送出訊息"
+                      className="w-12 h-12 rounded-xl bg-teal-500 flex items-center justify-center disabled:opacity-40 transition-opacity shadow-md"
                     >
-                      {q}
-                    </button>
-                  ))}
+                      <Send className="w-5 h-5 text-white" />
+                    </motion.button>
+                  </div>
                 </div>
-              )}
-
-              {/* Input */}
-              <div className="px-3 py-3 border-t border-teal-50 bg-white flex items-center gap-2">
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendText(input);
-                    }
-                  }}
-                  placeholder="跟小伴說說話..."
-                  aria-label="輸入訊息給小伴"
-                  className="flex-1 bg-slate-100 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-teal-300 transition-all"
-                />
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => sendText(input)}
-                  disabled={!input.trim()}
-                  aria-label="送出訊息"
-                  className="w-12 h-12 rounded-xl bg-teal-500 flex items-center justify-center disabled:opacity-40 transition-opacity shadow-md"
-                >
-                  <Send className="w-5 h-5 text-white" />
-                </motion.button>
               </div>
             </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Floating button — 按住拖曳調整位置，輕點開啟 */}
-        <motion.button
-          whileHover={isDragging ? undefined : { scale: 1.06 }}
-          whileTap={isDragging ? undefined : { scale: 0.94 }}
-          onPointerDown={handleFabPointerDown}
-          onPointerMove={handleFabPointerMove}
-          onPointerUp={finishFabDrag}
-          onPointerCancel={finishFabDrag}
-          onClick={(e) => {
-            if (open) {
-              e.preventDefault();
-              setOpen(false);
-            }
-          }}
-          className={`relative w-[72px] h-[72px] rounded-full bg-gradient-to-br from-teal-400 to-emerald-500 shadow-xl border-[3px] border-white flex items-center justify-center overflow-hidden touch-none ${
-            isDragging ? "cursor-grabbing scale-105 shadow-2xl" : "cursor-grab"
-          }`}
-          aria-label={
-            open
-              ? "關閉小伴 AI 陪伴"
-              : "開啟小伴 AI 陪伴（按住可拖曳調整位置）"
-          }
-          aria-expanded={open}
-        >
-          {open ? (
-            <X className="w-7 h-7 text-white" />
-          ) : (
-            <img
-              src={POSE_IMAGE.greet}
-              alt=""
-              className="w-full h-full object-cover object-top scale-[1.55] translate-y-3"
-              aria-hidden
-            />
-          )}
-          {!open && (
-            <motion.span
-              className="absolute inset-0 rounded-full border-2 border-teal-300"
-              animate={{ scale: [1, 1.25, 1], opacity: [0.8, 0, 0.8] }}
-              transition={{ duration: 2.2, repeat: Infinity }}
-              aria-hidden
-            />
-          )}
-        </motion.button>
-        {!open && !isDragging && (
-          <span
-            className="absolute -top-2 left-1/2 -translate-x-1/2 bg-teal-600 text-white text-[11px] px-2.5 py-0.5 rounded-full shadow whitespace-nowrap pointer-events-none"
-            style={{ fontWeight: 700 }}
-          >
-            按住可拖曳
-          </span>
+          </>
         )}
-      </div>
+      </AnimatePresence>
+
+      {/* 浮動小伴按鈕 — 對話開啟時隱藏，避免與對話框重疊 */}
+      {!open && (
+      <div
+        className="fixed z-[9997] select-none"
+        style={{ left: pos.x, top: pos.y, width: BTN_SIZE, height: BTN_SIZE }}
+      >
+          <AnimatePresence>
+            {!open && !isDragging && (
+              <motion.p
+                key="companion-hint"
+                initial={{ opacity: 0, x: panelAlignEnd ? 6 : -6 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: panelAlignEnd ? 4 : -4 }}
+                transition={{ duration: 0.2 }}
+                className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-teal-600/80 text-[11px] whitespace-nowrap leading-none ${
+                  panelAlignEnd
+                    ? "right-full mr-2 text-right"
+                    : "left-full ml-2 text-left"
+                }`}
+                style={{ fontWeight: 600 }}
+              >
+                點小伴聊聊 · 可拖曳
+              </motion.p>
+            )}
+          </AnimatePresence>
+
+          <motion.button
+            whileHover={isDragging ? undefined : { scale: 1.05 }}
+            whileTap={isDragging ? undefined : { scale: 0.96 }}
+            onPointerDown={handleFabPointerDown}
+            onPointerMove={handleFabPointerMove}
+            onPointerUp={finishFabDrag}
+            onPointerCancel={finishFabDrag}
+            onClick={(e) => e.preventDefault()}
+            style={{ width: BTN_SIZE, height: BTN_SIZE }}
+            className={`absolute inset-0 rounded-full touch-none shadow-xl border-[3px] border-white overflow-hidden ${
+              isDragging ? "cursor-grabbing scale-105 shadow-2xl" : "cursor-grab"
+            }`}
+            aria-label="開啟小伴 AI 陪伴（按住可拖曳調整位置）"
+            aria-expanded={false}
+          >
+              <>
+                <div className="absolute inset-0 bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-600" />
+                <div className="absolute inset-[9px] rounded-full bg-white/12 border border-white/25 flex items-center justify-center">
+                  <Bot className="w-9 h-9 text-white drop-shadow-sm" strokeWidth={1.75} aria-hidden />
+                </div>
+                <span
+                  className="absolute top-[7px] left-1/2 -translate-x-1/2 w-1 h-2 rounded-full bg-white/70"
+                  aria-hidden
+                />
+                <motion.span
+                  className="absolute inset-0 rounded-full border-2 border-white/50"
+                  animate={{ scale: [1, 1.14, 1], opacity: [0.55, 0, 0.55] }}
+                  transition={{ duration: 2.4, repeat: Infinity }}
+                  aria-hidden
+                />
+                <span
+                  className="absolute bottom-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-300 border-2 border-white shadow-sm"
+                  title="在線"
+                  aria-hidden
+                />
+              </>
+          </motion.button>
+        </div>
+      )}
     </>
   );
 
