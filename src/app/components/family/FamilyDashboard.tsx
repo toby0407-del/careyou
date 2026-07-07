@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { parseISO } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -26,13 +26,12 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { DEFAULT_PATIENT_ID, getPatientProfile } from "../../data/patientProfiles";
-import { getPatientAnalytics } from "../../data/patientAnalytics";
 import {
   formatAppointmentShort,
   getAppointmentsForPatient,
   getNextAppointment,
 } from "../../data/patientAppointments";
-import { useLiveStreak, useTodaySummary } from "../../hooks/useLiveProgress";
+import { useLiveStreak, usePatientAnalytics, useTodaySummary } from "../../hooks/useLiveProgress";
 import { sendEncouragement, ENCOURAGEMENT_PRESETS } from "../../data/encouragements";
 
 type FamilyTab = "overview" | "corridor";
@@ -48,6 +47,7 @@ function EncouragementDialog({
   patientName: string;
 }) {
   const [message, setMessage] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const send = (text: string) => {
     const trimmed = text.trim();
@@ -87,7 +87,10 @@ function EncouragementDialog({
               <button
                 key={preset}
                 type="button"
-                onClick={() => send(preset)}
+                onClick={() => {
+                  setMessage(preset);
+                  textareaRef.current?.focus();
+                }}
                 className="px-3.5 py-2 rounded-full bg-rose-50 border border-rose-100 text-rose-500 text-sm hover:bg-rose-100 transition-colors text-left"
                 style={{ fontWeight: 600 }}
               >
@@ -98,6 +101,7 @@ function EncouragementDialog({
 
           <div className="flex items-end gap-2">
             <textarea
+              ref={textareaRef}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
@@ -137,7 +141,7 @@ export function FamilyDashboard() {
   const streakDays = useLiveStreak();
   const todaySummary = useTodaySummary();
   const patientProfile = getPatientProfile(DEFAULT_PATIENT_ID)!;
-  const analytics = getPatientAnalytics(DEFAULT_PATIENT_ID);
+  const analytics = usePatientAnalytics(DEFAULT_PATIENT_ID);
   const nextAppointment = getNextAppointment(DEFAULT_PATIENT_ID);
   const upcomingAppointments = useMemo(() => {
     const now = new Date();
@@ -194,7 +198,7 @@ export function FamilyDashboard() {
                 <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-2xl px-4 py-2.5">
                   <Activity className="w-4 h-4 text-emerald-500 flex-shrink-0" />
                   <span className="text-emerald-600 text-sm whitespace-nowrap" style={{ fontWeight: 600 }}>
-                    今日 {todaySummary.completed}/{todaySummary.total} 項
+                    今日 {todaySummary.completed}/{todaySummary.total} 項 · {todaySummary.progressPct}%
                   </span>
                 </div>
                 <div className="flex items-center gap-2 bg-orange-50 border border-orange-100 rounded-2xl px-4 py-2.5">

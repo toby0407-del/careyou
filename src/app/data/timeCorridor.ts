@@ -1,3 +1,6 @@
+import { shiftIsoDate } from "../lib/mockTime";
+import { getTodaySummary, todayStr } from "./progressStore";
+
 export type CorridorEventType =
   | "surgery"
   | "first_session"
@@ -124,7 +127,10 @@ export const BASE_CORRIDOR_EVENTS: TimeCorridorEvent[] = [
       { label: "動作品質", value: 85, unit: "分" },
     ],
   },
-];
+].map((event) => ({
+  ...event,
+  date: shiftIsoDate(event.date),
+}));
 
 export function sortCorridorEvents(events: TimeCorridorEvent[]): TimeCorridorEvent[] {
   return [...events].sort(
@@ -133,16 +139,36 @@ export function sortCorridorEvents(events: TimeCorridorEvent[]): TimeCorridorEve
 }
 
 export function loadCorridorEvents(): TimeCorridorEvent[] {
+  const summary = getTodaySummary();
+  const withLiveToday = BASE_CORRIDOR_EVENTS.map((event) => {
+    if (event.id !== "evt-today") return event;
+    return {
+      ...event,
+      date: todayStr(),
+      description:
+        summary.completed > 0
+          ? `今日已完成 ${summary.completed}/${summary.total} 項訓練。`
+          : "今日尚未開始訓練。",
+      quality: summary.avgQualityToday ?? undefined,
+      metrics: [
+        { label: "今日完成", value: summary.progressPct, unit: "%" },
+        ...(summary.avgQualityToday != null
+          ? [{ label: "動作品質", value: summary.avgQualityToday, unit: "分" }]
+          : []),
+      ],
+    };
+  });
+
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     const dynamic: TimeCorridorEvent[] = stored ? JSON.parse(stored) : [];
-    const merged = [...BASE_CORRIDOR_EVENTS];
+    const merged = [...withLiveToday];
     for (const evt of dynamic) {
       if (!merged.some((e) => e.id === evt.id)) merged.push(evt);
     }
     return sortCorridorEvents(merged);
   } catch {
-    return sortCorridorEvents([...BASE_CORRIDOR_EVENTS]);
+    return sortCorridorEvents([...withLiveToday]);
   }
 }
 

@@ -1,3 +1,5 @@
+import { shiftIsoDate } from "../lib/mockTime";
+
 export interface DayExercise {
   name: string;
   level: number;
@@ -117,7 +119,10 @@ export const dailyResults: DayResult[] = [
   }
 
   return day;
-});
+}).map((day) => ({
+  ...day,
+  date: shiftIsoDate(day.date, "2026-07-13"),
+}));
 
 export function getDayResult(date: string): DayResult | undefined {
   return dailyResults.find((d) => d.date === date);

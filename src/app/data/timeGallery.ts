@@ -1,3 +1,5 @@
+import { shiftIsoDate } from "../lib/mockTime";
+
 export type GalleryCategory = "training" | "family" | "celebration" | "progress";
 
 export interface GalleryPhoto {
@@ -216,7 +218,10 @@ export const BASE_GALLERY_PHOTOS: GalleryPhoto[] = [
     imageUrl: G("g21-asian-family.jpg"),
     tags: ["三代同堂"],
   },
-];
+].map((photo) => ({
+  ...photo,
+  date: shiftIsoDate(photo.date),
+}));
 
 /** @deprecated use loadGalleryPhotos */
 export const galleryPhotos = BASE_GALLERY_PHOTOS;

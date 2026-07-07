@@ -45,7 +45,8 @@ import { PatientAnalyticsPanel } from "../shared/PatientAnalyticsPanel";
 import { TodayLiveFeed } from "../shared/TodayLiveFeed";
 import { DailyRevealStatusCard } from "../shared/DailyRevealStatusCard";
 import { DEFAULT_PATIENT_ID, getPatientProfile } from "../../data/patientProfiles";
-import { getPatientAnalytics } from "../../data/patientAnalytics";
+import { getPatientAnalytics, getAnalyticsKpiValue } from "../../data/patientAnalytics";
+import { getLastSessionLabel } from "../../data/progressStore";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Checkbox } from "../ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../ui/dialog";
@@ -71,6 +72,8 @@ import {
   setActivePatientId,
   subscribeExercisePlans,
 } from "../../data/patientExercisePlans";
+import { formatShiftedMonthDayTime } from "../../lib/mockTime";
+import { usePatientAnalytics } from "../../hooks/useLiveProgress";
 
 /** 訂閱目前患者端展示的病患 ID */
 function useActivePatientId(): string {
@@ -127,7 +130,7 @@ const PATIENTS: Patient[] = [
     trend: "up",
     status: "良好",
     lastSession: "2小時前",
-    nextAppt: "7/5 下午2:00",
+    nextAppt: formatShiftedMonthDayTime("2026-07-05T14:00:00"),
     progress: [60, 68, 72, 75, 80, 85, 87],
     assignedExerciseIds: ["long-arc-quad", "tke", "sit-to-stand", "seated-dorsiflexion"],
   },
@@ -141,7 +144,7 @@ const PATIENTS: Patient[] = [
     trend: "up",
     status: "良好",
     lastSession: "昨日",
-    nextAppt: "7/3 上午10:30",
+    nextAppt: formatShiftedMonthDayTime("2026-07-03T10:30:00"),
     progress: [45, 52, 58, 65, 70, 70, 72],
     assignedExerciseIds: ["bridge", "pelvic-tilt", "seated-side-bend", "standing-hip-abduction"],
   },
@@ -155,7 +158,7 @@ const PATIENTS: Patient[] = [
     trend: "down",
     status: "注意",
     lastSession: "3天前",
-    nextAppt: "7/2 上午9:00",
+    nextAppt: formatShiftedMonthDayTime("2026-07-02T09:00:00"),
     progress: [70, 65, 60, 58, 50, 48, 45],
     assignedExerciseIds: ["shoulder-press", "long-arc-quad", "standing-hip-abduction-band", "sit-to-stand", "chair-calf-raise"],
   },
@@ -169,7 +172,7 @@ const PATIENTS: Patient[] = [
     trend: "up",
     status: "良好",
     lastSession: "1小時前",
-    nextAppt: "7/4 下午3:30",
+    nextAppt: formatShiftedMonthDayTime("2026-07-04T15:30:00"),
     progress: [70, 78, 82, 87, 90, 93, 95],
     assignedExerciseIds: ["tube-shoulder-abduction", "lateral-raise", "scapula-squeeze", "bicep-curl"],
   },
@@ -183,7 +186,7 @@ const PATIENTS: Patient[] = [
     trend: "flat",
     status: "注意",
     lastSession: "2天前",
-    nextAppt: "7/6 上午11:00",
+    nextAppt: formatShiftedMonthDayTime("2026-07-06T11:00:00"),
     progress: [55, 58, 56, 60, 57, 59, 58],
     assignedExerciseIds: ["seated-ankle-eversion-fixed", "band-calf-raise", "seated-dorsiflexion", "long-arc-quad"],
   },
@@ -742,15 +745,23 @@ function FullReportDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const syncedAnalytics = usePatientAnalytics(DEFAULT_PATIENT_ID);
   if (!patient) return null;
 
   const assigned = exercisesForPatient(patient.assignedExerciseIds);
-  const avgProgress = Math.round(
-    patient.progress.reduce((sum, value) => sum + value, 0) / patient.progress.length
-  );
   const profile = getPatientProfile(patient.id);
-  const analytics = getPatientAnalytics(patient.id);
+  const analytics =
+    patient.id === DEFAULT_PATIENT_ID ? syncedAnalytics : getPatientAnalytics(patient.id);
   const regions = regionsForPatient(patient.assignedExerciseIds);
+  const compliance = analytics.kpi.find((item) => item.name === "整體遵從")?.value ?? patient.compliance;
+  const todayCompletion =
+    analytics.kpi.find((item) => item.name === "今日完成")?.value ??
+    (patient.id === DEFAULT_PATIENT_ID ? 0 : patient.compliance);
+  const avgProgress = analytics.kpi.find((item) => item.name === "本週均分")?.value ?? compliance;
+  const weeklyTrend = analytics.weekly.map((item, idx) => ({
+    label: item.day === "今日" ? "今日" : `D${idx + 1}`,
+    value: item.completion,
+  }));
 
   const clinicalNotes =
     patient.status === "注意"
@@ -759,7 +770,7 @@ function FullReportDialog({
           "評估疼痛指數與動作品質是否影響訓練意願。",
           "下次回診前請家屬協助督促每日訓練紀錄。",
         ]
-      : patient.compliance >= 90
+      : compliance >= 90
         ? [
             "訓練表現優異，可逐步增加阻力或進階動作。",
             "維持現有頻率，持續監測各部位恢復雷達弱項。",
@@ -788,8 +799,9 @@ function FullReportDialog({
         <div className="px-6 py-5 max-h-[82vh] overflow-y-auto space-y-5">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { label: "目前依從率", value: `${patient.compliance}%`, tone: "text-sky-600" },
-              { label: "7 週平均", value: `${avgProgress}%`, tone: "text-blue-600" },
+              { label: "今日完成率", value: `${todayCompletion}%`, tone: "text-emerald-600" },
+              { label: "整體依從率", value: `${compliance}%`, tone: "text-sky-600" },
+              { label: "本週平均", value: `${avgProgress}%`, tone: "text-blue-600" },
               { label: "動作品質", value: `${analytics.qualityAvg} 分`, tone: "text-emerald-600" },
               { label: "下次回診", value: patient.nextAppt, tone: "text-amber-600" },
             ].map((item) => (
@@ -828,21 +840,21 @@ function FullReportDialog({
               </div>
 
               <h4 className="text-slate-600 text-xs mt-4 mb-2" style={{ fontWeight: 700 }}>
-                7 週依從率走勢
+                本週依從率走勢
               </h4>
               <div className="space-y-2">
-                {patient.progress.map((value, idx) => (
-                  <div key={idx}>
+                {weeklyTrend.map((item, idx) => (
+                  <div key={`${item.label}-${idx}`}>
                     <div className="flex items-center justify-between text-xs mb-0.5">
-                      <span className="text-slate-500">第 {idx + 1} 週</span>
-                      <span className="text-slate-800" style={{ fontWeight: 700 }}>{value}%</span>
+                      <span className="text-slate-500">{item.label}</span>
+                      <span className="text-slate-800" style={{ fontWeight: 700 }}>{item.value}%</span>
                     </div>
                     <div className="h-1.5 rounded-full bg-white overflow-hidden">
                       <div
                         className={`h-full rounded-full ${
-                          value >= 80 ? "bg-emerald-400" : value >= 60 ? "bg-amber-400" : "bg-rose-400"
+                          item.value >= 80 ? "bg-emerald-400" : item.value >= 60 ? "bg-amber-400" : "bg-rose-400"
                         }`}
-                        style={{ width: `${value}%` }}
+                        style={{ width: `${item.value}%` }}
                       />
                     </div>
                   </div>
@@ -1059,9 +1071,18 @@ function PatientDetailPanel({
   onViewReport: () => void;
   onConfigureReminder: () => void;
 }) {
-  const progressData = patient.progress.map((v, i) => ({
-    week: `W${i + 1}`,
-    compliance: v,
+  const syncedAnalytics = usePatientAnalytics(DEFAULT_PATIENT_ID);
+  const analytics =
+    patient.id === DEFAULT_PATIENT_ID ? syncedAnalytics : getPatientAnalytics(patient.id);
+  const compliance = analytics.kpi.find((item) => item.name === "整體遵從")?.value ?? patient.compliance;
+  const todayCompletion =
+    analytics.kpi.find((item) => item.name === "今日完成")?.value ??
+    (patient.id === DEFAULT_PATIENT_ID ? 0 : patient.compliance);
+  const lastSession =
+    patient.id === DEFAULT_PATIENT_ID ? getLastSessionLabel() : patient.lastSession;
+  const progressData = analytics.weekly.map((item, idx) => ({
+    week: item.day === "今日" ? "今日" : `D${idx + 1}`,
+    compliance: item.completion,
   }));
   const activePatientId = useActivePatientId();
   const isActiveOnPatientApp = activePatientId === patient.id;
@@ -1118,9 +1139,15 @@ function PatientDetailPanel({
 
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: "依從率", value: `${patient.compliance}%`, icon: Activity, color: "text-sky-500" },
+            {
+              label: patient.id === DEFAULT_PATIENT_ID ? "今日完成率" : "依從率",
+              value:
+                patient.id === DEFAULT_PATIENT_ID ? `${todayCompletion}%` : `${compliance}%`,
+              icon: Activity,
+              color: "text-sky-500",
+            },
             { label: "復健階段", value: patient.phase, icon: ClipboardList, color: "text-blue-400" },
-            { label: "上次訓練", value: patient.lastSession, icon: Clock, color: "text-slate-600" },
+            { label: "上次訓練", value: lastSession, icon: Clock, color: "text-slate-600" },
             { label: "下次回診", value: patient.nextAppt, icon: Calendar, color: "text-emerald-600" },
           ].map((metric) => {
             const Icon = metric.icon;
@@ -1146,7 +1173,7 @@ function PatientDetailPanel({
         <ExercisePlanEditor patientId={patient.id} patientName={patient.name} />
 
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-          <h3 className="text-slate-700 text-sm mb-2">7 週依從率趨勢</h3>
+          <h3 className="text-slate-700 text-sm mb-2">本週依從率趨勢</h3>
           <ResponsiveContainer width="100%" height={90}>
             <AreaChart data={progressData}>
               <defs>
@@ -1232,6 +1259,7 @@ export function DoctorPortal() {
   const selectedPatient = patients.find((p) => p.id === selectedPatientId) ?? null;
   const profilePatient = selectedPatient ? getPatientProfile(selectedPatient.id) : undefined;
   const activePatientId = useActivePatientId();
+  const syncedAnalytics = usePatientAnalytics(DEFAULT_PATIENT_ID);
   const departmentOptions = useMemo(
     () =>
       Array.from(
@@ -1535,6 +1563,14 @@ export function DoctorPortal() {
               {filtered.map((patient) => {
                 const TrendIcon = TREND_ICONS[patient.trend];
                 const isSelected = selectedPatient?.id === patient.id;
+                const compliance =
+                  patient.id === DEFAULT_PATIENT_ID
+                    ? getAnalyticsKpiValue(syncedAnalytics, "今日完成")
+                    : patient.compliance;
+                const complianceLabel =
+                  patient.id === DEFAULT_PATIENT_ID ? "今日完成率" : "依從率";
+                const lastSession =
+                  patient.id === DEFAULT_PATIENT_ID ? getLastSessionLabel() : patient.lastSession;
                 return (
                   <div
                     key={patient.id}
@@ -1573,27 +1609,27 @@ export function DoctorPortal() {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <Activity className="w-3.5 h-3.5 text-slate-400" />
-                            <span className="text-slate-600 text-xs">依從率</span>
+                            <span className="text-slate-600 text-xs">{complianceLabel}</span>
                             <span className="text-slate-800 text-sm" style={{ fontWeight: 600 }}>
-                              {patient.compliance}%
+                              {compliance}%
                             </span>
                             <TrendIcon className={`w-4 h-4 ${TREND_COLORS[patient.trend]}`} />
                           </div>
                           <div className="flex items-center gap-1 text-xs text-slate-400">
                             <Clock className="w-3 h-3" />
-                            <span>{patient.lastSession}</span>
+                            <span>{lastSession}</span>
                           </div>
                         </div>
                         <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
                           <div
                             className={`h-full rounded-full ${
-                              patient.compliance >= 80
+                              compliance >= 80
                                 ? "bg-emerald-400"
-                                : patient.compliance >= 60
+                                : compliance >= 60
                                 ? "bg-amber-400"
                                 : "bg-red-400"
                             }`}
-                            style={{ width: `${patient.compliance}%` }}
+                            style={{ width: `${compliance}%` }}
                           />
                         </div>
                       </div>

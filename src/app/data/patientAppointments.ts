@@ -1,5 +1,6 @@
 import { format, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
+import { shiftIsoDateTime } from "../lib/mockTime";
 
 export interface PatientAppointment {
   id: string;
@@ -9,6 +10,9 @@ export interface PatientAppointment {
   /** ISO 8601，含日期與時間 */
   datetime: string;
   location: string;
+  clinicNumber?: string;
+  purpose?: string;
+  estimatedVisitTime?: string;
   note?: string;
 }
 
@@ -18,8 +22,11 @@ const appointments: PatientAppointment[] = [
     patientId: "p1",
     department: "骨科復健科",
     physician: "陳建宏 醫師",
-    datetime: "2026-07-05T14:00:00",
+    datetime: shiftIsoDateTime("2026-07-05T14:00:00"),
     location: "復健大樓 3F 305 診",
+    clinicNumber: "305 診",
+    purpose: "膝關節功能評估與復健處方調整",
+    estimatedVisitTime: "14:20 - 14:40",
     note: "膝關節功能評估、調整復健處方",
   },
   {
@@ -27,8 +34,11 @@ const appointments: PatientAppointment[] = [
     patientId: "p1",
     department: "新陳代謝科",
     physician: "王怡君 醫師",
-    datetime: "2026-07-08T10:30:00",
+    datetime: shiftIsoDateTime("2026-07-08T10:30:00"),
     location: "門診大樓 2F 218 診",
+    clinicNumber: "218 診",
+    purpose: "術後血糖與體重追蹤",
+    estimatedVisitTime: "10:30 - 10:50",
     note: "術後血糖與體重追蹤",
   },
   {
@@ -36,8 +46,11 @@ const appointments: PatientAppointment[] = [
     patientId: "p1",
     department: "心臟內科",
     physician: "林志遠 醫師",
-    datetime: "2026-07-12T15:00:00",
+    datetime: shiftIsoDateTime("2026-07-12T15:00:00"),
     location: "門診大樓 4F 412 診",
+    clinicNumber: "412 診",
+    purpose: "術前術後心血管風險追蹤",
+    estimatedVisitTime: "15:10 - 15:30",
     note: "術前術後心血管風險追蹤",
   },
   {
@@ -45,16 +58,22 @@ const appointments: PatientAppointment[] = [
     patientId: "p2",
     department: "復健醫學科",
     physician: "林雅婷 醫師",
-    datetime: "2026-07-03T10:30:00",
+    datetime: shiftIsoDateTime("2026-07-03T10:30:00"),
     location: "復健大樓 2F 201 診",
+    clinicNumber: "201 診",
+    purpose: "術後步態與肌力評估",
+    estimatedVisitTime: "10:30 - 10:45",
   },
   {
     id: "a5",
     patientId: "p3",
     department: "神經復健科",
     physician: "陳建宏 醫師",
-    datetime: "2026-07-02T09:00:00",
+    datetime: shiftIsoDateTime("2026-07-02T09:00:00"),
     location: "復健大樓 4F 402 診",
+    clinicNumber: "402 診",
+    purpose: "神經復健進度追蹤",
+    estimatedVisitTime: "09:10 - 09:30",
   },
 ];
 

@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import { Bell, CheckCheck } from "lucide-react";
 import {
-  NOTIFICATIONS_BY_VARIANT,
+  getNotificationsByVariant,
   type NotificationVariant,
 } from "../../data/notifications";
+import { subscribeProgress, getTodaySummary } from "../../data/progressStore";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 
 const TYPE_STYLES = {
@@ -29,8 +30,16 @@ export function NotificationBell({
 }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const progressVersion = useSyncExternalStore(
+    subscribeProgress,
+    () => getTodaySummary().progressPct,
+    () => 0
+  );
 
-  const items = NOTIFICATIONS_BY_VARIANT[variant];
+  const items = useMemo(
+    () => getNotificationsByVariant(variant),
+    [variant, progressVersion]
+  );
   const unreadCount = useMemo(
     () => items.filter((n) => n.unread && !readIds.has(n.id)).length,
     [items, readIds]

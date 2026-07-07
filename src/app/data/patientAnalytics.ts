@@ -1,3 +1,13 @@
+import { format } from "date-fns";
+import { zhTW } from "date-fns/locale";
+import {
+  getCalendarDateRange,
+  getStatsForDate,
+  getStreakDays,
+  getTodaySummary,
+} from "./progressStore";
+import { isAppToday } from "../lib/appClock";
+
 export interface WeeklyDay {
   day: string;
   completion: number;
@@ -35,69 +45,103 @@ export interface PatientAnalytics {
   qualityAvg: number;
 }
 
-const P1_ANALYTICS: PatientAnalytics = {
-  streakDays: 12,
-  weekOverWeekDelta: 8,
-  kpi: [
-    { name: "今日完成", value: 33 },
-    { name: "本週均分", value: 74 },
-    { name: "動作品質", value: 88 },
-    { name: "整體遵從", value: 87 },
-  ],
-  weekly: [
-    { day: "週一", completion: 85, duration: 42, lastWeek: 72 },
-    { day: "週二", completion: 70, duration: 35, lastWeek: 65 },
-    { day: "週三", completion: 100, duration: 55, lastWeek: 80 },
-    { day: "週四", completion: 60, duration: 30, lastWeek: 55 },
-    { day: "週五", completion: 95, duration: 48, lastWeek: 78 },
-    { day: "週六", completion: 80, duration: 40, lastWeek: 70 },
-    { day: "今日", completion: 33, duration: 18, lastWeek: 60 },
-  ],
-  monthly: [
-    { date: "6/1", score: 72, quality: 70 },
-    { date: "6/5", score: 80, quality: 75 },
-    { date: "6/9", score: 85, quality: 78 },
-    { date: "6/13", score: 90, quality: 82 },
-    { date: "6/17", score: 92, quality: 85 },
-    { date: "6/21", score: 95, quality: 88 },
-    { date: "6/25", score: 94, quality: 90 },
-    { date: "6/29", score: 96, quality: 87 },
-    { date: "7/1", score: 33, quality: 85 },
-  ],
-  pain: [
-    { day: "週一", level: 4 },
-    { day: "週二", level: 3 },
-    { day: "週三", level: 3 },
-    { day: "週四", level: 2 },
-    { day: "週五", level: 2 },
-    { day: "週六", level: 2 },
-    { day: "今日", level: 2 },
-  ],
-  qualityWeekly: [
-    { week: "W1", score: 72 },
-    { week: "W2", score: 78 },
-    { week: "W3", score: 85 },
-    { week: "W4", score: 88 },
-  ],
-  bodyRecovery: [
-    { part: "膝關節", score: 78, fullMark: 100 },
-    { part: "踝關節", score: 85, fullMark: 100 },
-    { part: "髖關節", score: 70, fullMark: 100 },
-    { part: "核心", score: 65, fullMark: 100 },
-    { part: "肌力", score: 72, fullMark: 100 },
-    { part: "平衡", score: 60, fullMark: 100 },
-  ],
-  painToday: 2,
-  qualityAvg: 88,
-};
+function dayLabel(date: string, isToday: boolean): string {
+  return isToday ? "今日" : format(new Date(date), "EEE", { locale: zhTW }).replace("週", "週");
+}
+
+function movingPain(rate: number): number {
+  if (rate >= 90) return 2;
+  if (rate >= 75) return 3;
+  if (rate >= 60) return 4;
+  return 5;
+}
+
+function buildBaseAnalytics(): PatientAnalytics {
+  const summary = getTodaySummary();
+  const last30Dates = getCalendarDateRange(30);
+  const last7Dates = last30Dates.slice(-7);
+  const prev7Dates = last30Dates.slice(-14, -7);
+  const stats30 = last30Dates.map((date) => getStatsForDate(date));
+  const stats7 = last7Dates.map((date) => getStatsForDate(date));
+  const statsPrev7 = prev7Dates.map((date) => getStatsForDate(date));
+
+  const weekAvg = Math.round(
+    stats7.reduce((sum, day) => sum + day.completionPct, 0) / Math.max(1, stats7.length)
+  );
+  const prevWeekAvg = statsPrev7.length
+    ? Math.round(
+        statsPrev7.reduce((sum, day) => sum + day.completionPct, 0) / statsPrev7.length
+      )
+    : weekAvg;
+  const overallCompliance = Math.round(
+    stats30.reduce((sum, day) => sum + day.completionPct, 0) / Math.max(1, stats30.length)
+  );
+  const qualityAvg = summary.avgQualityToday ?? 0;
+
+  const weekly = stats7.map((day, index) => ({
+    day: dayLabel(day.date, isAppToday(day.date)),
+    completion: day.completionPct,
+    duration: day.durationMin,
+    lastWeek: statsPrev7[index]?.completionPct ?? 0,
+  }));
+
+  const monthly = stats30
+    .filter((_, index) => index % 4 === 0 || index === stats30.length - 1)
+    .map((day) => ({
+      date: format(new Date(day.date), "M/d"),
+      score: day.completionPct,
+      quality: day.accuracy,
+    }));
+
+  const pain = stats7.map((day) => ({
+    day: dayLabel(day.date, isAppToday(day.date)),
+    level: movingPain(day.completionPct),
+  }));
+
+  const qualityWeekly = Array.from({ length: 4 }, (_, index) => {
+    const chunk = stats30.slice(
+      Math.max(0, stats30.length - (4 - index) * 7),
+      stats30.length - (3 - index) * 7 || undefined
+    );
+    const avg = chunk.length
+      ? Math.round(chunk.reduce((sum, day) => sum + day.accuracy, 0) / chunk.length)
+      : qualityAvg;
+    return { week: `W${index + 1}`, score: avg };
+  });
+
+  return {
+    streakDays: getStreakDays(),
+    weekOverWeekDelta: weekAvg - prevWeekAvg,
+    kpi: [
+      { name: "今日完成", value: summary.progressPct },
+      { name: "本週均分", value: weekAvg },
+      { name: "動作品質", value: qualityAvg },
+      { name: "整體遵從", value: overallCompliance },
+    ],
+    weekly,
+    monthly,
+    pain,
+    qualityWeekly,
+    bodyRecovery: [
+      { part: "膝關節", score: 78, fullMark: 100 },
+      { part: "踝關節", score: 85, fullMark: 100 },
+      { part: "髖關節", score: 70, fullMark: 100 },
+      { part: "核心", score: 65, fullMark: 100 },
+      { part: "肌力", score: 72, fullMark: 100 },
+      { part: "平衡", score: 60, fullMark: 100 },
+    ],
+    painToday: pain[pain.length - 1]?.level ?? 2,
+    qualityAvg,
+  };
+}
 
 function scaleWeekly(base: WeeklyDay[], compliance: number, delta: number): WeeklyDay[] {
   const factor = compliance / 87;
-  return base.map((d) => ({
-    ...d,
-    completion: Math.min(100, Math.round(d.completion * factor)),
-    lastWeek: Math.min(100, Math.round(d.lastWeek * (factor - delta / 200))),
-    duration: Math.round(d.duration * factor),
+  return base.map((day) => ({
+    ...day,
+    completion: Math.min(100, Math.round(day.completion * factor)),
+    lastWeek: Math.min(100, Math.round(day.lastWeek * (factor - delta / 200))),
+    duration: Math.round(day.duration * factor),
   }));
 }
 
@@ -108,32 +152,32 @@ function makeAnalytics(
   bodyParts: BodyRecoveryPoint[],
   painBase: number
 ): PatientAnalytics {
-  const weekly = scaleWeekly(P1_ANALYTICS.weekly, compliance, weekDelta);
-  const todayCompletion = weekly[weekly.length - 1]?.completion ?? compliance;
-  const weekAvg = Math.round(weekly.reduce((s, d) => s + d.completion, 0) / weekly.length);
+  const base = buildBaseAnalytics();
+  const weekly = scaleWeekly(base.weekly, compliance, weekDelta);
+  const weekAvg = Math.round(weekly.reduce((sum, day) => sum + day.completion, 0) / weekly.length);
   const quality = Math.min(98, Math.round(compliance * 0.95 + 5));
   return {
     streakDays,
     weekOverWeekDelta: weekDelta,
     kpi: [
-      { name: "今日完成", value: todayCompletion },
+      { name: "今日完成", value: base.kpi[0]?.value ?? 0 },
       { name: "本週均分", value: weekAvg },
       { name: "動作品質", value: quality },
       { name: "整體遵從", value: compliance },
     ],
     weekly,
-    monthly: P1_ANALYTICS.monthly.map((m, i) => ({
-      ...m,
-      score: Math.min(100, Math.round(m.score * (compliance / 87) * (0.85 + i * 0.02))),
-      quality: Math.min(98, Math.round(m.quality * (quality / 88))),
+    monthly: base.monthly.map((point, index) => ({
+      ...point,
+      score: Math.min(100, Math.round(point.score * (compliance / 87) * (0.85 + index * 0.02))),
+      quality: Math.min(98, Math.round(point.quality * (quality / 88))),
     })),
-    pain: P1_ANALYTICS.pain.map((p) => ({
-      ...p,
-      level: Math.max(1, Math.min(10, Math.round(painBase + (p.level - 2) * 0.5))),
+    pain: base.pain.map((point) => ({
+      ...point,
+      level: Math.max(1, Math.min(10, Math.round(painBase + (point.level - 2) * 0.5))),
     })),
-    qualityWeekly: P1_ANALYTICS.qualityWeekly.map((q, i) => ({
-      week: q.week,
-      score: Math.min(98, Math.round(quality - (3 - i) * 4)),
+    qualityWeekly: base.qualityWeekly.map((point, index) => ({
+      week: point.week,
+      score: Math.min(98, Math.round(quality - (3 - index) * 4)),
     })),
     bodyRecovery: bodyParts,
     painToday: Math.max(1, painBase),
@@ -141,42 +185,51 @@ function makeAnalytics(
   };
 }
 
-const ANALYTICS_BY_PATIENT: Record<string, PatientAnalytics> = {
-  p1: P1_ANALYTICS,
-  p2: makeAnalytics(72, 7, 5, [
-    { part: "腰椎", score: 68, fullMark: 100 },
-    { part: "核心", score: 62, fullMark: 100 },
-    { part: "髖關節", score: 70, fullMark: 100 },
-    { part: "下肢", score: 74, fullMark: 100 },
-    { part: "肌力", score: 66, fullMark: 100 },
-    { part: "平衡", score: 58, fullMark: 100 },
-  ], 4),
-  p3: makeAnalytics(45, 0, -12, [
-    { part: "上肢", score: 42, fullMark: 100 },
-    { part: "下肢", score: 38, fullMark: 100 },
-    { part: "核心", score: 50, fullMark: 100 },
-    { part: "平衡", score: 35, fullMark: 100 },
-    { part: "肌力", score: 40, fullMark: 100 },
-    { part: "協調", score: 36, fullMark: 100 },
-  ], 5),
-  p4: makeAnalytics(95, 21, 12, [
-    { part: "肩關節", score: 88, fullMark: 100 },
-    { part: "肘關節", score: 92, fullMark: 100 },
-    { part: "旋轉肌群", score: 85, fullMark: 100 },
-    { part: "核心", score: 80, fullMark: 100 },
-    { part: "肌力", score: 90, fullMark: 100 },
-    { part: "活動度", score: 87, fullMark: 100 },
-  ], 1),
-  p5: makeAnalytics(58, 3, 0, [
-    { part: "踝關節", score: 62, fullMark: 100 },
-    { part: "膝關節", score: 70, fullMark: 100 },
-    { part: "小腿", score: 55, fullMark: 100 },
-    { part: "平衡", score: 48, fullMark: 100 },
-    { part: "肌力", score: 58, fullMark: 100 },
-    { part: "活動度", score: 60, fullMark: 100 },
-  ], 3),
-};
-
 export function getPatientAnalytics(patientId: string): PatientAnalytics {
-  return ANALYTICS_BY_PATIENT[patientId] ?? P1_ANALYTICS;
+  if (patientId === "p1") return buildBaseAnalytics();
+  if (patientId === "p2") {
+    return makeAnalytics(72, 7, 5, [
+      { part: "腰椎", score: 68, fullMark: 100 },
+      { part: "核心", score: 62, fullMark: 100 },
+      { part: "髖關節", score: 70, fullMark: 100 },
+      { part: "下肢", score: 74, fullMark: 100 },
+      { part: "肌力", score: 66, fullMark: 100 },
+      { part: "平衡", score: 58, fullMark: 100 },
+    ], 4);
+  }
+  if (patientId === "p3") {
+    return makeAnalytics(45, 0, -12, [
+      { part: "上肢", score: 42, fullMark: 100 },
+      { part: "下肢", score: 38, fullMark: 100 },
+      { part: "核心", score: 50, fullMark: 100 },
+      { part: "平衡", score: 35, fullMark: 100 },
+      { part: "肌力", score: 40, fullMark: 100 },
+      { part: "協調", score: 36, fullMark: 100 },
+    ], 5);
+  }
+  if (patientId === "p4") {
+    return makeAnalytics(95, 21, 12, [
+      { part: "肩關節", score: 88, fullMark: 100 },
+      { part: "肘關節", score: 92, fullMark: 100 },
+      { part: "旋轉肌群", score: 85, fullMark: 100 },
+      { part: "核心", score: 80, fullMark: 100 },
+      { part: "肌力", score: 90, fullMark: 100 },
+      { part: "活動度", score: 87, fullMark: 100 },
+    ], 1);
+  }
+  if (patientId === "p5") {
+    return makeAnalytics(58, 3, 0, [
+      { part: "踝關節", score: 62, fullMark: 100 },
+      { part: "膝關節", score: 70, fullMark: 100 },
+      { part: "小腿", score: 55, fullMark: 100 },
+      { part: "平衡", score: 48, fullMark: 100 },
+      { part: "肌力", score: 58, fullMark: 100 },
+      { part: "活動度", score: 60, fullMark: 100 },
+    ], 3);
+  }
+  return buildBaseAnalytics();
+}
+
+export function getAnalyticsKpiValue(analytics: PatientAnalytics, name: string): number {
+  return analytics.kpi.find((item) => item.name === name)?.value ?? 0;
 }

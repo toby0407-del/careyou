@@ -34,15 +34,6 @@ const SUPPORT_RESPONSES = [
   "您的訓練進度非常好！請繼續保持。",
 ];
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    id: "1",
-    text: `您好！歡迎使用 ${getAppDisplayName()}。有任何問題請隨時告訴我。`,
-    sender: "support",
-    time: "10:30",
-  },
-];
-
 function getTime() {
   return new Date().toLocaleTimeString("zh-TW", {
     hour: "2-digit",
@@ -58,7 +49,14 @@ export function ChatWidget({
   textScaleClass = "",
 }: ChatWidgetProps) {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>(() => [
+    {
+      id: "1",
+      text: `您好！歡迎使用 ${getAppDisplayName()}。有任何問題請隨時告訴我。`,
+      sender: "support",
+      time: getTime(),
+    },
+  ]);
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);

@@ -6,7 +6,6 @@ import {
   endOfMonth,
   eachDayOfInterval,
   isSameMonth,
-  isSameDay,
   addMonths,
   subMonths,
   getDay,
@@ -32,10 +31,12 @@ import {
   type DayResult,
 } from "../../data/dailyResults";
 import { allExercises } from "../../data/patientExercises";
+import { getAppBusinessDate, getAppBusinessDateStr } from "../../lib/appClock";
 import {
   useLiveDailyResults,
   useLiveExercises,
   useLiveStreak,
+  useTodaySummary,
 } from "../../hooks/useLiveProgress";
 import {
   ResponsiveContainer,
@@ -301,14 +302,12 @@ export function PatientResults() {
   const dailyResults = useLiveDailyResults();
   const liveExercises = useLiveExercises();
   const streakDays = useLiveStreak();
-  const todayDate = useMemo(() => new Date(), []);
-  const [currentMonth, setCurrentMonth] = useState(startOfMonth(todayDate));
-  const [selectedDate, setSelectedDate] = useState<string | null>(() => {
-    const latest = [...dailyResults].sort((a, b) => b.date.localeCompare(a.date))[0];
-    return latest?.date ?? null;
-  });
+  const todaySummary = useTodaySummary();
+  const businessToday = useMemo(() => getAppBusinessDate(), []);
+  const todayDateStr = getAppBusinessDateStr();
+  const [currentMonth, setCurrentMonth] = useState(startOfMonth(businessToday));
+  const [selectedDate, setSelectedDate] = useState<string | null>(todayDateStr);
 
-  const completedCount = liveExercises.filter((e) => e.completed).length;
   const totalStars = liveExercises
     .filter((e) => e.completed)
     .reduce((s, e) => s + e.stars, 0);
@@ -394,7 +393,7 @@ export function PatientResults() {
             const rate = result ? getCompletionRate(result) : 0;
             const color = getCompletionColor(rate);
             const isSelected = selectedDate === dateStr;
-            const isToday = isSameDay(date, todayDate);
+            const isToday = dateStr === todayDateStr;
             const hasData = !!result;
 
             return (
@@ -451,8 +450,8 @@ export function PatientResults() {
             { icon: Star, label: "總星數", value: `${totalStars} ★`, color: "text-amber-500" },
             {
               icon: Dumbbell,
-              label: "完成項目",
-              value: `${completedCount}/${liveExercises.length}`,
+              label: "今日完成",
+              value: `${todaySummary.completed}/${todaySummary.total}`,
               color: "text-emerald-500",
             },
           ].map((s) => {

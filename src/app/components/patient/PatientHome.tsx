@@ -13,7 +13,6 @@ import {
   Trophy,
   Images,
   Heart,
-  Volume2,
   X,
 } from "lucide-react";
 import { NotificationBell } from "../shared/NotificationBell";
@@ -38,7 +37,6 @@ import {
   subscribeEncouragements,
   type Encouragement,
 } from "../../data/encouragements";
-import { speak, getVoiceEnabled, isSpeechSupported } from "../../lib/speech";
 
 type Tab = "tasks" | "results" | "milestones" | "gallery";
 
@@ -82,18 +80,6 @@ function EncouragementBanner() {
           {item.message}
         </p>
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          {isSpeechSupported() && (
-            <button
-              type="button"
-              onClick={() => getVoiceEnabled() && speak(`${item.from}說：${item.message}`, { interrupt: true })}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-white border border-rose-200 text-rose-500 text-xs hover:bg-rose-100 transition-colors"
-              style={{ fontWeight: 700 }}
-              aria-label="播放家人的打氣語音"
-            >
-              <Volume2 className="w-3.5 h-3.5" />
-              聽
-            </button>
-          )}
           <button
             type="button"
             onClick={() => {

@@ -15,9 +15,11 @@ export function useTimeCorridor() {
   useEffect(() => {
     const onUpdate = () => refresh();
     window.addEventListener("time-corridor-updated", onUpdate);
+    window.addEventListener("rehab-progress-updated", onUpdate);
     window.addEventListener("storage", onUpdate);
     return () => {
       window.removeEventListener("time-corridor-updated", onUpdate);
+      window.removeEventListener("rehab-progress-updated", onUpdate);
       window.removeEventListener("storage", onUpdate);
     };
   }, [refresh]);

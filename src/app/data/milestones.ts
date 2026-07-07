@@ -13,11 +13,12 @@ import {
 } from "lucide-react";
 import {
   getStreakDays,
-  getLiveExercises,
+  getLifetimeCompletedLevelCount,
   getTotalValidReps,
   getAllSessions,
   todayStr,
 } from "./progressStore";
+import { shiftIsoDate } from "../lib/mockTime";
 
 export type MilestoneCategory = "streak" | "level" | "quality" | "recovery" | "special";
 
@@ -92,7 +93,7 @@ export const milestones: Milestone[] = [
     current: 24,
     unit: "天",
     unlocked: true,
-    unlockedDate: "2026-06-20",
+    unlockedDate: shiftIsoDate("2026-06-20"),
     color: "text-orange-600",
     bg: "bg-orange-50",
     reward: "獲得「起步者」徽章",
@@ -107,7 +108,7 @@ export const milestones: Milestone[] = [
     current: 24,
     unit: "天",
     unlocked: true,
-    unlockedDate: "2026-06-24",
+    unlockedDate: shiftIsoDate("2026-06-24"),
     color: "text-orange-600",
     bg: "bg-orange-50",
     reward: "解鎖專屬鼓勵語音",
@@ -122,7 +123,7 @@ export const milestones: Milestone[] = [
     current: 24,
     unit: "天",
     unlocked: true,
-    unlockedDate: "2026-07-01",
+    unlockedDate: shiftIsoDate("2026-07-01"),
     color: "text-orange-600",
     bg: "bg-orange-50",
     reward: "獲得「毅力」勳章",
@@ -152,7 +153,7 @@ export const milestones: Milestone[] = [
     current: 1,
     unit: "關",
     unlocked: true,
-    unlockedDate: "2026-06-18",
+    unlockedDate: shiftIsoDate("2026-06-18"),
     color: "text-teal-600",
     bg: "bg-teal-50",
     reward: "解鎖關卡 2",
@@ -167,7 +168,7 @@ export const milestones: Milestone[] = [
     current: 3,
     unit: "關",
     unlocked: true,
-    unlockedDate: "2026-07-06",
+    unlockedDate: shiftIsoDate("2026-07-06"),
     color: "text-teal-600",
     bg: "bg-teal-50",
     reward: "獲得 50 顆星星",
@@ -197,7 +198,7 @@ export const milestones: Milestone[] = [
     current: 91,
     unit: "%",
     unlocked: true,
-    unlockedDate: "2026-07-08",
+    unlockedDate: shiftIsoDate("2026-07-08"),
     color: "text-blue-600",
     bg: "bg-blue-50",
     reward: "AI 語音特別讚美",
@@ -226,7 +227,7 @@ export const milestones: Milestone[] = [
     current: 1,
     unit: "次",
     unlocked: true,
-    unlockedDate: "2026-06-25",
+    unlockedDate: shiftIsoDate("2026-06-25"),
     color: "text-violet-600",
     bg: "bg-violet-50",
     reward: "3 顆金星獎勵",
@@ -242,7 +243,7 @@ export const milestones: Milestone[] = [
     current: 15,
     unit: "°",
     unlocked: true,
-    unlockedDate: "2026-07-10",
+    unlockedDate: shiftIsoDate("2026-07-10"),
     color: "text-rose-600",
     bg: "bg-rose-50",
     reward: "醫師端進度更新",
@@ -257,7 +258,7 @@ export const milestones: Milestone[] = [
     current: 5,
     unit: "天",
     unlocked: true,
-    unlockedDate: "2026-07-13",
+    unlockedDate: shiftIsoDate("2026-07-13"),
     color: "text-rose-600",
     bg: "bg-rose-50",
     reward: "獨立復健者徽章",
@@ -273,7 +274,7 @@ export const milestones: Milestone[] = [
     current: 1,
     unit: "次",
     unlocked: true,
-    unlockedDate: "2026-06-22",
+    unlockedDate: shiftIsoDate("2026-06-22"),
     color: "text-pink-600",
     bg: "bg-pink-50",
     reward: "時光迴廊新增合照",
@@ -288,7 +289,7 @@ export const milestones: Milestone[] = [
     current: 1,
     unit: "次",
     unlocked: true,
-    unlockedDate: "2026-06-28",
+    unlockedDate: shiftIsoDate("2026-06-28"),
     color: "text-indigo-600",
     bg: "bg-indigo-50",
     reward: "專屬鼓勵卡片",
@@ -319,7 +320,7 @@ const QUALITY_PCT_IDS = new Set(["quality-90", "quality-95"]);
 /** 里程碑即時進度 — 由統一進度資料層驅動（連續天數 / 關卡 / 標準動作 / 品質） */
 export function getLiveMilestones(): Milestone[] {
   const streak = getStreakDays();
-  const completedLevels = getLiveExercises().filter((e) => e.completed).length;
+  const completedLevels = getLifetimeCompletedLevelCount();
   const totalReps = getTotalValidReps();
   const sessionQualities = getAllSessions().map((s) => s.quality);
   const bestQuality = Math.max(91, ...(sessionQualities.length ? sessionQualities : [0]));

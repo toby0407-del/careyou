@@ -6,6 +6,7 @@ import {
   getTodaySummary,
   getLiveDailyResults,
 } from "../data/progressStore";
+import { getPatientAnalytics, type PatientAnalytics } from "../data/patientAnalytics";
 import type { Exercise } from "../data/exerciseTypes";
 import type { DayResult } from "../data/dailyResults";
 
@@ -14,6 +15,8 @@ let cachedExercises: Exercise[] | null = null;
 let cachedSummary: ReturnType<typeof getTodaySummary> | null = null;
 let cachedStreak: number | null = null;
 let cachedDaily: DayResult[] | null = null;
+let cachedAnalytics: PatientAnalytics | null = null;
+let cachedAnalyticsPatientId: string | null = null;
 
 function subscribe(listener: () => void) {
   return subscribeProgress(() => {
@@ -22,6 +25,8 @@ function subscribe(listener: () => void) {
     cachedSummary = null;
     cachedStreak = null;
     cachedDaily = null;
+    cachedAnalytics = null;
+    cachedAnalyticsPatientId = null;
     listener();
   });
 }
@@ -56,4 +61,14 @@ export function useLiveDailyResults(): DayResult[] {
   useSyncExternalStore(subscribe, getVersion);
   if (!cachedDaily) cachedDaily = getLiveDailyResults();
   return cachedDaily;
+}
+
+/** 家屬端 / 醫師端 / 患者端共用的分析圖表資料 */
+export function usePatientAnalytics(patientId: string): PatientAnalytics {
+  useSyncExternalStore(subscribe, getVersion);
+  if (!cachedAnalytics || cachedAnalyticsPatientId !== patientId) {
+    cachedAnalytics = getPatientAnalytics(patientId);
+    cachedAnalyticsPatientId = patientId;
+  }
+  return cachedAnalytics;
 }
