@@ -42,7 +42,6 @@ import { ChatWidget } from "../shared/ChatWidget";
 import { NotificationBell } from "../shared/NotificationBell";
 import { PatientProfileDialog } from "../shared/PatientProfileDialog";
 import { PatientAnalyticsPanel } from "../shared/PatientAnalyticsPanel";
-import { TodayLiveFeed } from "../shared/TodayLiveFeed";
 import { DailyRevealStatusCard } from "../shared/DailyRevealStatusCard";
 import { DEFAULT_PATIENT_ID, getPatientProfile } from "../../data/patientProfiles";
 import { getPatientAnalytics, getAnalyticsKpiValue } from "../../data/patientAnalytics";
@@ -802,7 +801,12 @@ function FullReportDialog({
               { label: "今日完成率", value: `${todayCompletion}%`, tone: "text-emerald-600" },
               { label: "整體依從率", value: `${compliance}%`, tone: "text-sky-600" },
               { label: "本週平均", value: `${avgProgress}%`, tone: "text-blue-600" },
-              { label: "動作品質", value: `${analytics.qualityAvg} 分`, tone: "text-emerald-600" },
+              {
+                label: "動作品質",
+                value:
+                  analytics.qualityToday != null ? `${analytics.qualityToday} 分` : "尚無",
+                tone: "text-emerald-600",
+              },
               { label: "下次回診", value: patient.nextAppt, tone: "text-amber-600" },
             ].map((item) => (
               <div key={item.label} className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
@@ -1131,10 +1135,7 @@ function PatientDetailPanel({
 
       <div className="p-3 space-y-3 overflow-y-auto flex-1 flex flex-col min-h-0">
         {patient.id === DEFAULT_PATIENT_ID && (
-          <>
-            <TodayLiveFeed variant="doctor" />
-            <DailyRevealStatusCard variant="doctor" compact />
-          </>
+          <DailyRevealStatusCard variant="doctor" compact />
         )}
 
         <div className="grid grid-cols-2 gap-2">
@@ -1677,9 +1678,14 @@ export function DoctorPortal() {
       </AnimatePresence>
 
       <ChatWidget
+        portal="doctor"
         accentColor="bg-sky-400"
         accentBg="bg-sky-50"
-        portalLabel="醫療諮詢服務"
+        doctorPatients={patients.map((p) => ({
+          id: p.id,
+          name: p.name,
+          diagnosis: p.diagnosis,
+        }))}
       />
 
       {profilePatient && (

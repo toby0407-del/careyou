@@ -32,9 +32,9 @@ export function TimeGalleryComingSoon({
           }}
         />
         <div className="absolute top-8 left-12 w-24 h-px bg-gradient-to-r from-violet-300/60 to-transparent" />
-        <div className="absolute bottom-12 right-16 w-32 h-px bg-gradient-to-l from-teal-300/50 to-transparent" />
+        <div className="absolute bottom-12 right-16 w-32 h-px bg-gradient-to-l from-teal-100/50 to-transparent" />
         <div className="absolute top-1/4 right-1/4 w-40 h-40 rounded-full border border-violet-200/40" />
-        <div className="absolute bottom-1/4 left-1/5 w-28 h-28 rounded-full border border-teal-200/30" />
+        <div className="absolute bottom-1/4 left-1/5 w-28 h-28 rounded-full border border-teal-50/30" />
       </div>
 
       <motion.div

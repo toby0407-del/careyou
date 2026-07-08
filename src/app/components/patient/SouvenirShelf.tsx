@@ -20,7 +20,7 @@ function SouvenirCard({ souvenir }: { souvenir: IslandSouvenir }) {
     >
       <div className="absolute top-2 right-2">
         {souvenir.unlocked ? (
-          <span className="text-[9px] text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full" style={{ fontWeight: 700 }}>
+          <span className="text-[9px] text-emerald-300 bg-emerald-50 px-1.5 py-0.5 rounded-full" style={{ fontWeight: 700 }}>
             已獲得
           </span>
         ) : (

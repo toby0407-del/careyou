@@ -62,7 +62,7 @@ export function AdventureMap({ onShowSouvenirs: _onShowSouvenirs }: AdventureMap
                 onClick={() => isChapterUnlocked(ch.id) && scrollToPage(i)}
                 disabled={!isChapterUnlocked(ch.id)}
                 className={`h-1.5 rounded-full transition-all ${
-                  i === pageIndex ? "w-5 bg-teal-500" : "w-1.5 bg-slate-200"
+                  i === pageIndex ? "w-5 bg-teal-300" : "w-1.5 bg-slate-200"
                 } ${!isChapterUnlocked(ch.id) ? "opacity-30" : ""}`}
                 aria-label={`第 ${ch.index} 章`}
               />

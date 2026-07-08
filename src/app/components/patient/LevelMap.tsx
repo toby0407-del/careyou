@@ -128,7 +128,7 @@ function MapNode({
       {/* Active pulse ring */}
       {status === "active" && (
         <motion.div
-          className="absolute inset-0 -m-3 rounded-full border-2 border-teal-400"
+          className="absolute inset-0 -m-3 rounded-full border-2 border-teal-200"
           animate={{ scale: [1, 1.35, 1], opacity: [0.7, 0, 0.7] }}
           transition={{ duration: 2, repeat: Infinity }}
           style={{ width: 97, height: 97, left: "50%", top: "50%", x: "-50%", y: "-50%" }}
@@ -150,7 +150,7 @@ function MapNode({
         {/* Island base shadow */}
         <div
           className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-[5.25rem] h-3.5 rounded-full blur-sm ${
-            status === "locked" ? "bg-slate-300/40" : "bg-teal-400/30"
+            status === "locked" ? "bg-slate-300/40" : "bg-teal-200/30"
           }`}
         />
 
@@ -160,8 +160,8 @@ function MapNode({
             status === "locked"
               ? "bg-slate-100 border-slate-250 border-slate-200"
               : status === "completed"
-              ? "bg-gradient-to-br from-emerald-400 to-teal-500 border-white shadow-lg shadow-emerald-200"
-              : "bg-gradient-to-br from-teal-400 to-emerald-500 border-white shadow-lg shadow-teal-300 ring-[3px] ring-teal-100"
+              ? "bg-gradient-to-br from-emerald-200 to-teal-300 border-white shadow-lg shadow-emerald-100"
+              : "bg-gradient-to-br from-teal-200 to-emerald-300 border-white shadow-lg shadow-teal-100 ring-[3px] ring-teal-50"
           }`}
         >
           {status === "locked" ? (
@@ -187,8 +187,8 @@ function MapNode({
             status === "locked"
               ? "bg-slate-50/80 border-slate-100"
               : status === "active"
-              ? "bg-white border-teal-200 shadow-md"
-              : "bg-white/90 border-emerald-100 shadow-sm"
+              ? "bg-white border-teal-50 shadow-md"
+              : "bg-white/90 border-emerald-50 shadow-sm"
           }`}
         >
           <p
@@ -214,7 +214,7 @@ function MapNode({
             </div>
           )}
           {status === "active" && (
-            <span className="map-text-xs text-teal-600 block mt-0.5" style={{ fontWeight: 700 }}>
+            <span className="map-text-xs text-teal-300 block mt-0.5" style={{ fontWeight: 700 }}>
               可挑戰 →
             </span>
           )}
@@ -236,7 +236,7 @@ export function LevelMap() {
   return (
     <div className="patient-map-ui flex flex-col h-full overflow-hidden min-h-0">
       {/* Adventure map canvas */}
-      <div className="flex-1 min-h-[180px] relative rounded-2xl border border-emerald-100/80 overflow-hidden shadow-sm shadow-emerald-100/30">
+      <div className="flex-1 min-h-[180px] relative rounded-2xl border border-emerald-50/80 overflow-hidden shadow-sm shadow-emerald-50/30">
         {/* Terrain background */}
         <div
           className="absolute inset-0"
@@ -288,7 +288,7 @@ export function LevelMap() {
             {/* 路徑上的腳印提示（僅圖示，不擋關卡文字） */}
             {activeIdx >= 0 && activeIdx < MAP_POSITIONS.length - 1 && (
               <motion.div
-                className="absolute z-[5] pointer-events-none flex items-center justify-center w-9 h-9 bg-teal-600/90 text-white rounded-full shadow-md"
+                className="absolute z-[5] pointer-events-none flex items-center justify-center w-9 h-9 bg-teal-300/90 text-white rounded-full shadow-md"
                 style={{
                   left: `${(MAP_POSITIONS[activeIdx].x + MAP_POSITIONS[activeIdx + 1].x) / 2}%`,
                   top: `${(MAP_POSITIONS[activeIdx].y + MAP_POSITIONS[activeIdx + 1].y) / 2}%`,

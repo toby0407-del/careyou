@@ -312,7 +312,12 @@ export function FamilyDashboard() {
       </main>
       )}
 
-      <ChatWidget accentColor="bg-rose-300" accentBg="bg-rose-50" portalLabel="家屬諮詢服務" />
+      <ChatWidget
+        portal="family"
+        patientId={DEFAULT_PATIENT_ID}
+        accentColor="bg-rose-300"
+        accentBg="bg-rose-50"
+      />
 
       <PatientProfileDialog
         open={profileOpen}

@@ -19,10 +19,10 @@ const CATEGORY_THEME: Record<
     progress: "from-orange-400 to-amber-400",
   },
   level: {
-    text: "text-teal-600",
+    text: "text-teal-300",
     bg: "bg-teal-50",
     iconBg: "bg-white",
-    progress: "from-teal-400 to-emerald-400",
+    progress: "from-teal-200 to-emerald-200",
   },
   quality: {
     text: "text-blue-600",
@@ -95,13 +95,13 @@ function MilestoneCard({
       type="button"
       onClick={onOpen}
       className={`${theme.bg} milestone-card rounded-2xl border p-3 flex flex-col relative overflow-hidden ${
-        milestone.unlocked ? "border-emerald-200" : "border-slate-200"
+        milestone.unlocked ? "border-emerald-100" : "border-slate-200"
       } text-left hover:shadow-sm transition-all w-full`}
       style={{ height: CARD_HEIGHT_PX, minHeight: CARD_HEIGHT_PX, maxHeight: CARD_HEIGHT_PX }}
     >
       <div className="absolute top-3 right-3">
         {milestone.unlocked ? (
-          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+          <CheckCircle2 className="w-4 h-4 text-emerald-300" />
         ) : (
           <Lock className="w-3.5 h-3.5 text-slate-300" />
         )}
@@ -118,7 +118,7 @@ function MilestoneCard({
           <div className="flex items-center gap-1.5 flex-wrap">
             <span
               className={`text-[10px] px-2 py-0.5 rounded-full ${
-                milestone.unlocked ? "bg-white/90 text-emerald-600" : "bg-white/70 text-slate-500"
+                milestone.unlocked ? "bg-white/90 text-emerald-300" : "bg-white/70 text-slate-500"
               }`}
               style={{ fontWeight: 700 }}
             >
@@ -164,7 +164,7 @@ function MilestoneLegend() {
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-500 ml-auto flex-shrink-0">
       <span className="flex items-center gap-1">
-        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" />
         已完成
       </span>
       <span className="flex items-center gap-1">
@@ -176,7 +176,7 @@ function MilestoneLegend() {
         獎勵
       </span>
       <span className="flex items-center gap-1">
-        <span className="w-8 h-1.5 rounded-full bg-gradient-to-r from-teal-400 to-emerald-400" />
+        <span className="w-8 h-1.5 rounded-full bg-gradient-to-r from-teal-200 to-emerald-200" />
         進度
       </span>
     </div>
@@ -225,8 +225,8 @@ export function PatientMilestones() {
           onClick={() => switchFilter("completed")}
           className={`px-4 py-2 rounded-full milestone-chip flex-shrink-0 transition-all ${
             activeFilter === "completed"
-              ? "bg-teal-600 text-white"
-              : "bg-white/80 text-emerald-800 border border-emerald-100"
+              ? "bg-teal-300 text-white"
+              : "bg-white/80 text-emerald-800 border border-emerald-50"
           }`}
           style={{ fontWeight: 700 }}
         >
@@ -236,8 +236,8 @@ export function PatientMilestones() {
           onClick={() => switchFilter("locked")}
           className={`px-4 py-2 rounded-full milestone-chip flex-shrink-0 transition-all ${
             activeFilter === "locked"
-              ? "bg-teal-600 text-white"
-              : "bg-white/80 text-emerald-800 border border-emerald-100"
+              ? "bg-teal-300 text-white"
+              : "bg-white/80 text-emerald-800 border border-emerald-50"
           }`}
           style={{ fontWeight: 700 }}
         >
@@ -278,7 +278,7 @@ export function PatientMilestones() {
 
       <Dialog open={!!selectedMilestone} onOpenChange={(open) => !open && setSelectedMilestone(null)}>
         {selectedMilestone && (
-          <DialogContent className="sm:max-w-xl rounded-3xl border-teal-100 p-0 overflow-hidden">
+          <DialogContent className="sm:max-w-xl rounded-3xl border-teal-50 p-0 overflow-hidden">
             <div className={`${CATEGORY_THEME[selectedMilestone.category].bg} px-6 py-5 border-b border-white/60`}>
               <DialogHeader className="text-left">
                 <div className="flex items-center gap-4 pr-8">
@@ -299,31 +299,31 @@ export function PatientMilestones() {
 
             <div className="px-6 py-5 space-y-4">
               <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-2xl bg-emerald-50/80 border border-emerald-100 px-4 py-3">
+                <div className="rounded-2xl bg-emerald-50/80 border border-emerald-50 px-4 py-3">
                   <p className="text-slate-400 text-xs">目前進度</p>
                   <p className="text-slate-800 text-lg mt-1" style={{ fontWeight: 800 }}>
                     {selectedMilestone.current}/{selectedMilestone.target}
                     <span className="text-sm ml-1">{selectedMilestone.unit}</span>
                   </p>
                 </div>
-                <div className="rounded-2xl bg-emerald-50/80 border border-emerald-100 px-4 py-3">
+                <div className="rounded-2xl bg-emerald-50/80 border border-emerald-50 px-4 py-3">
                   <p className="text-slate-400 text-xs">狀態</p>
                   <p
-                    className={`text-lg mt-1 ${selectedMilestone.unlocked ? "text-emerald-600" : "text-amber-600"}`}
+                    className={`text-lg mt-1 ${selectedMilestone.unlocked ? "text-emerald-300" : "text-amber-600"}`}
                     style={{ fontWeight: 800 }}
                   >
                     {selectedMilestone.unlocked ? "已解鎖" : "進行中"}
                   </p>
                 </div>
-                <div className="rounded-2xl bg-emerald-50/80 border border-emerald-100 px-4 py-3">
+                <div className="rounded-2xl bg-emerald-50/80 border border-emerald-50 px-4 py-3">
                   <p className="text-slate-400 text-xs">完成度</p>
-                  <p className="text-teal-600 text-lg mt-1" style={{ fontWeight: 800 }}>
+                  <p className="text-teal-300 text-lg mt-1" style={{ fontWeight: 800 }}>
                     {Math.min(100, Math.round((selectedMilestone.current / selectedMilestone.target) * 100))}%
                   </p>
                 </div>
               </div>
 
-              <div className="rounded-2xl bg-white/85 border border-emerald-100 px-4 py-4 space-y-3">
+              <div className="rounded-2xl bg-white/85 border border-emerald-50 px-4 py-4 space-y-3">
                 <div className="flex items-start gap-3">
                   <Sparkles className="w-4 h-4 text-violet-500 mt-0.5 flex-shrink-0" />
                   <div>

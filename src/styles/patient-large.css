@@ -2,14 +2,14 @@
 .patient-large-text {
   font-size: calc(16px * var(--pt-scale));
   line-height: 1.45;
-  --patient-bg: #ecfdf5;
-  --patient-bg-soft: #f0fdf4;
-  --patient-border: rgba(167, 243, 208, 0.55);
+  --patient-bg: #f0fdf9;
+  --patient-bg-soft: #f7fefc;
+  --patient-border: rgba(153, 246, 228, 0.4);
 }
 
 /* 患者端外殼 — 淡淡綠色背景 */
 .patient-shell {
-  background: linear-gradient(165deg, var(--patient-bg-soft) 0%, var(--patient-bg) 45%, #e8faf0 100%);
+  background: linear-gradient(165deg, var(--patient-bg-soft) 0%, var(--patient-bg) 45%, #f3fdf8 100%);
 }
 
 .patient-shell-header {

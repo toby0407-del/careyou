@@ -32,33 +32,34 @@ import { todayStr } from "../../data/progressStore";
 const THEMES = {
   /** 患者端 — 青綠色系，與復健地圖 / 底部導覽一致 */
   patient: {
-    accent: "#0d9488",
-    filterActive: "bg-teal-600 text-white shadow-md shadow-teal-200",
-    filterIdle: "bg-white text-slate-600 border border-teal-100 hover:border-teal-200",
-    dot: "bg-teal-400",
-    line: "bg-teal-200",
-    badge: "bg-teal-50 text-teal-700",
-    sync: "text-teal-600",
+    accent: "#5eead4",
+    filterActive: "bg-teal-300 text-white shadow-md shadow-teal-50",
+    filterIdle: "bg-white text-slate-600 border border-teal-50 hover:border-teal-50",
+    dot: "bg-teal-200",
+    line: "bg-teal-50",
+    badge: "bg-teal-50 text-teal-400",
+    sync: "text-teal-300",
     gradient: "from-emerald-50 via-green-50 to-teal-50/60",
-    panelBorder: "border-emerald-100",
-    uploadBtn: "bg-teal-600 hover:bg-teal-700 shadow-md shadow-teal-200",
-    hero: "bg-white/90 border border-emerald-100/80 shadow-sm",
+    panelBorder: "border-emerald-50",
+    uploadBtn: "bg-teal-300 hover:bg-teal-400 shadow-md shadow-teal-50",
+    hero: "bg-white/90 border border-emerald-50/80 shadow-sm",
     heroSub: "text-slate-500",
     heroTitle: "text-slate-800",
-    heroStat: "text-teal-700",
-    heroProgressTrack: "bg-emerald-100",
-    heroProgressFill: "bg-teal-500",
-    uploadIcon: "text-teal-600",
-    lockRing: "ring-teal-200/70 border-teal-300",
-    lockNext: "bg-teal-500",
-    cardShadow: "shadow-teal-200/40",
-    uploadDashed: "border-teal-200 hover:border-teal-300 hover:bg-teal-50/50",
-    uploadIconBg: "bg-teal-100",
-    uploadIconColor: "text-teal-500",
-    focusRing: "focus:ring-teal-300",
-    linkAccent: "text-teal-600",
-    uploadedBadge: "bg-teal-500/90",
-    deleteBorder: "border-teal-200 text-teal-600 hover:bg-teal-50",
+    heroStat: "text-teal-400",
+    heroProgressTrack: "bg-emerald-50",
+    heroProgressFill: "bg-teal-300",
+    uploadIcon: "text-teal-300",
+    lockRing: "ring-teal-50/70 border-teal-100",
+    lockNext: "bg-teal-300",
+    cardShadow: "shadow-teal-50/40",
+    uploadDashed: "border-teal-50 hover:border-teal-100 hover:bg-teal-50/50",
+    uploadIconBg: "bg-teal-50",
+    uploadIconColor: "text-teal-300",
+    focusRing: "focus:ring-teal-100",
+    linkAccent: "text-teal-300",
+    uploadedBadge: "bg-teal-300/90",
+    deleteBorder: "border-teal-50 text-teal-300 hover:bg-teal-50",
+    unlockedBadge: "bg-emerald-400/90",
   },
   /** 家屬端 — 柔和玫瑰粉，與監護總覽 header / 打氣對話框一致 */
   family: {
@@ -154,7 +155,7 @@ function RevealGridCard({
 
       {unlocked ? (
         <>
-          <div className="absolute top-2 left-2 flex items-center gap-1 bg-emerald-500/90 text-white text-[10px] px-2 py-1 rounded-full shadow" style={{ fontWeight: 800 }}>
+          <div className={`absolute top-2 left-2 flex items-center gap-1 ${theme.unlockedBadge ?? "bg-emerald-500/90"} text-white text-[10px] px-2 py-1 rounded-full shadow`} style={{ fontWeight: 800 }}>
             <Sparkles className="w-3 h-3" />
             第 {levelNo} 關
           </div>
@@ -481,7 +482,7 @@ export function TimeGallery({ variant, patientName = "王大明" }: TimeGalleryP
             onClick={() => setUploadOpen(true)}
             className={`flex items-center gap-1 rounded-xl px-3 py-2 text-sm flex-shrink-0 ${
               variant === "patient"
-                ? "bg-teal-600 text-white shadow-sm shadow-teal-200/50 hover:bg-teal-700"
+                ? "bg-teal-300 text-white shadow-sm shadow-teal-50/50 hover:bg-teal-400"
                 : "bg-white/95 text-slate-800"
             }`}
             style={{ fontWeight: 800 }}

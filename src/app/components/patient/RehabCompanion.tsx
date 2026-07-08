@@ -72,16 +72,16 @@ const TEXT_TONE_CLASS: Record<
   { dark: { title: string; message: string }; light: { title: string; message: string } }
 > = {
   default: {
-    dark: { title: "text-teal-400", message: "text-slate-100" },
-    light: { title: "text-teal-700", message: "text-slate-800" },
+    dark: { title: "text-teal-200", message: "text-slate-100" },
+    light: { title: "text-teal-400", message: "text-slate-800" },
   },
   map: {
-    dark: { title: "text-teal-400", message: "text-slate-100" },
+    dark: { title: "text-teal-200", message: "text-slate-100" },
     light: { title: "text-teal-800", message: "text-slate-800" },
   },
   dark: {
-    dark: { title: "text-teal-400", message: "text-slate-100" },
-    light: { title: "text-teal-700", message: "text-slate-900" },
+    dark: { title: "text-teal-200", message: "text-slate-100" },
+    light: { title: "text-teal-400", message: "text-slate-900" },
   },
 };
 

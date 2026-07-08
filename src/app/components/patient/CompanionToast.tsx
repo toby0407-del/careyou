@@ -63,7 +63,7 @@ export function CompanionToast({
             <button
               type="button"
               onClick={() => setVisible(false)}
-              className="absolute top-0 right-0 z-20 w-7 h-7 rounded-full bg-white/95 border border-teal-200/80 shadow-sm hover:bg-emerald-50 flex items-center justify-center"
+              className="absolute top-0 right-0 z-20 w-7 h-7 rounded-full bg-white/95 border border-teal-50/80 shadow-sm hover:bg-emerald-50 flex items-center justify-center"
               aria-label="關閉提示"
             >
               <X className="w-3.5 h-3.5 text-slate-500" />

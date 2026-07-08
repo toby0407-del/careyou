@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { NotificationBell } from "../shared/NotificationBell";
+import { ChatWidget } from "../shared/ChatWidget";
 import { PatientProfileDialog } from "../shared/PatientProfileDialog";
 import {
   Dialog,
@@ -141,7 +142,7 @@ export function PatientHome() {
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <button
               onClick={() => navigate("/")}
-              className="w-11 h-11 rounded-xl bg-emerald-100/70 hover:bg-emerald-100 flex items-center justify-center flex-shrink-0 transition-colors border border-emerald-100"
+              className="w-11 h-11 rounded-xl bg-emerald-50/70 hover:bg-emerald-50 flex items-center justify-center flex-shrink-0 transition-colors border border-emerald-50"
               aria-label="返回首頁"
             >
               <ArrowLeft className="w-5 h-5 text-slate-600" />
@@ -154,7 +155,7 @@ export function PatientHome() {
                 {activeTab === "tasks" && (
                   <>
                     <span
-                      className="flex items-center gap-1 bg-emerald-100/60 text-emerald-800 text-xs px-2.5 py-1 rounded-full whitespace-nowrap border border-emerald-100"
+                      className="flex items-center gap-1 bg-emerald-50/60 text-emerald-800 text-xs px-2.5 py-1 rounded-full whitespace-nowrap border border-emerald-50"
                       style={{ fontWeight: 600 }}
                     >
                       <Clock className="w-3.5 h-3.5" />
@@ -172,7 +173,7 @@ export function PatientHome() {
                 {activeTab !== "gallery" && activeTab !== "milestones" && activeTab !== "tasks" && (
                   <>
                     <span
-                      className="flex items-center gap-1.5 bg-emerald-100/60 text-emerald-800 text-xs px-3 py-1.5 rounded-full whitespace-nowrap border border-emerald-100"
+                      className="flex items-center gap-1.5 bg-emerald-50/60 text-emerald-800 text-xs px-3 py-1.5 rounded-full whitespace-nowrap border border-emerald-50"
                       style={{ fontWeight: 600 }}
                     >
                       <Clock className="w-3.5 h-3.5" />
@@ -215,25 +216,25 @@ export function PatientHome() {
               <StreakStar days={streakDays} />
             </button>
 
-            <div className="flex items-center gap-2 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2 min-w-[8.5rem]">
-              <div className="flex-1 h-3 bg-teal-100 rounded-full overflow-hidden min-w-[4rem]">
-                <div className="h-full bg-teal-500 rounded-full transition-all" style={{ width: `${progressPct}%` }} />
+            <div className="flex items-center gap-2 bg-teal-50 border border-teal-50 rounded-xl px-3 py-2 min-w-[8.5rem]">
+              <div className="flex-1 h-3 bg-teal-50 rounded-full overflow-hidden min-w-[4rem]">
+                <div className="h-full bg-teal-300 rounded-full transition-all" style={{ width: `${progressPct}%` }} />
               </div>
-              <span className="text-teal-700 text-sm tabular-nums min-w-[2.5rem] text-right" style={{ fontWeight: 800 }}>
+              <span className="text-teal-400 text-sm tabular-nums min-w-[2.5rem] text-right" style={{ fontWeight: 800 }}>
                 {progressPct}%
               </span>
             </div>
 
             <NotificationBell
               variant="patient"
-              buttonClassName="w-12 h-12 rounded-xl bg-emerald-100/70 hover:bg-emerald-100 flex items-center justify-center relative transition-colors border border-emerald-100"
+              buttonClassName="w-12 h-12 rounded-xl bg-emerald-50/70 hover:bg-emerald-50 flex items-center justify-center relative transition-colors border border-emerald-50"
               iconClassName="w-6 h-6 text-slate-600"
               badgeClassName="absolute top-2 right-2 w-2.5 h-2.5 bg-red-400 rounded-full ring-2 ring-white"
             />
             <button
               type="button"
               onClick={() => setProfileOpen(true)}
-              className="w-12 h-12 rounded-xl bg-teal-600 hover:bg-teal-700 flex items-center justify-center transition-colors"
+              className="w-12 h-12 rounded-xl bg-teal-300 hover:bg-teal-400 flex items-center justify-center transition-colors"
               aria-label="查看個人資料"
             >
               <User className="w-6 h-6 text-white" />
@@ -280,13 +281,13 @@ export function PatientHome() {
                 aria-selected={active}
                 aria-label={tab.label}
                 className={`flex flex-col items-center gap-0.5 py-2 px-2 transition-colors ${
-                  active ? "text-teal-600" : "text-slate-400 hover:text-slate-600"
+                  active ? "text-teal-300" : "text-slate-400 hover:text-slate-600"
                 }`}
               >
                 <div
                   className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${
                     active
-                      ? "bg-teal-600 text-white shadow-md shadow-teal-200"
+                      ? "bg-teal-300 text-white shadow-md shadow-teal-50"
                       : "bg-transparent"
                   }`}
                 >
@@ -311,8 +312,8 @@ export function PatientHome() {
       />
 
       <Dialog open={streakInfoOpen} onOpenChange={setStreakInfoOpen}>
-        <DialogContent className="sm:max-w-xl rounded-3xl border-teal-100 p-0 overflow-hidden">
-          <div className="bg-gradient-to-r from-teal-500 to-emerald-500 px-6 py-5 text-white">
+        <DialogContent className="sm:max-w-xl rounded-3xl border-teal-50 p-0 overflow-hidden">
+          <div className="bg-gradient-to-r from-teal-300 to-emerald-300 px-6 py-5 text-white">
             <DialogHeader className="text-left">
               <div className="flex items-center gap-4">
                 <StreakStar days={streakDays} />
@@ -334,6 +335,14 @@ export function PatientHome() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <ChatWidget
+        portal="patient"
+        patientId={DEFAULT_PATIENT_ID}
+        accentColor="bg-teal-300"
+        accentBg="bg-teal-50"
+        textScaleClass="patient-large-text"
+      />
     </div>
   );
 }

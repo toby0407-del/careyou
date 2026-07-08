@@ -438,7 +438,7 @@ export function RehabExecution() {
         </div>
         <button
           onClick={() => navigate("/patient")}
-          className="px-6 py-3 bg-teal-500 text-white rounded-xl"
+          className="px-6 py-3 bg-teal-300 text-white rounded-xl"
         >
           返回闖關地圖
         </button>
@@ -481,7 +481,7 @@ export function RehabExecution() {
           </p>
         </div>
         <div className="flex gap-3">
-          <button onClick={retry} className="px-6 py-3 bg-teal-500 text-white rounded-xl">
+          <button onClick={retry} className="px-6 py-3 bg-teal-300 text-white rounded-xl">
             重試
           </button>
           <button
@@ -518,9 +518,9 @@ export function RehabExecution() {
               <motion.div
                 animate={{ scale: [1, 1.1, 1] }}
                 transition={{ duration: 1.5, repeat: Infinity }}
-                className="w-20 h-20 rounded-full bg-teal-500/20 border-2 border-teal-500 flex items-center justify-center"
+                className="w-20 h-20 rounded-full bg-teal-300/20 border-2 border-teal-300 flex items-center justify-center"
               >
-                <Camera className="w-9 h-9 text-teal-400" />
+                <Camera className="w-9 h-9 text-teal-200" />
               </motion.div>
               <div className="text-center">
                 <h2 className="text-white mb-2">
@@ -543,8 +543,8 @@ export function RehabExecution() {
 
           {phase === "ready" && isReady && (
             <div className="absolute bottom-8 left-4 z-20 pointer-events-none max-w-[min(300px,50vw)]">
-              <div className="bg-black/65 backdrop-blur-md border border-teal-400/30 rounded-2xl px-4 py-3">
-                <p className="text-teal-300 text-xs mb-1" style={{ fontWeight: 700 }}>準備好了嗎？</p>
+              <div className="bg-black/65 backdrop-blur-md border border-teal-200/30 rounded-2xl px-4 py-3">
+                <p className="text-teal-100 text-xs mb-1" style={{ fontWeight: 700 }}>準備好了嗎？</p>
                 <p className="text-white/90 text-sm leading-relaxed">
                   請站進畫面中央，把整個身體都讓鏡頭看到。舉起右手 2 秒就會開始計數！
                 </p>
@@ -554,7 +554,7 @@ export function RehabExecution() {
 
           {phase === "training" && isReady && (
             <div className="absolute bottom-28 left-4 z-20 pointer-events-none max-w-[min(280px,44vw)]">
-              <div className="bg-black/65 backdrop-blur-md border border-emerald-400/30 rounded-2xl px-4 py-2.5">
+              <div className="bg-black/65 backdrop-blur-md border border-emerald-200/30 rounded-2xl px-4 py-2.5">
                 <p className="text-white/90 text-sm leading-relaxed">
                   {feedback || "保持呼吸，動作放慢一點會更標準喔！"}
                 </p>
@@ -578,15 +578,15 @@ export function RehabExecution() {
                   <motion.div
                     animate={{ opacity: [0.7, 1, 0.7] }}
                     transition={{ duration: 1.5, repeat: Infinity }}
-                    className="flex items-center gap-2 bg-black/60 backdrop-blur-sm border border-emerald-500/40 rounded-full px-3 py-1.5"
+                    className="flex items-center gap-2 bg-black/60 backdrop-blur-sm border border-emerald-300/40 rounded-full px-3 py-1.5"
                   >
-                    <Activity className="w-3.5 h-3.5 text-emerald-400" />
-                    <span className="text-emerald-400 text-xs" style={{ fontWeight: 600 }}>
+                    <Activity className="w-3.5 h-3.5 text-emerald-200" />
+                    <span className="text-emerald-200 text-xs" style={{ fontWeight: 600 }}>
                       {engine === "blazepose" ? "BlazePose 33點" : "MoveNet 17點"} · {activeKeypoints}{" "}
                       偵測中 · {fps} FPS
                       {activeKeypoints === 0 && " · 請站入畫面"}
                     </span>
-                    <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+                    <div className="w-2 h-2 bg-emerald-200 rounded-full animate-pulse" />
                   </motion.div>
 
                   <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm border border-white/15 rounded-full px-3 py-1.5">
@@ -594,14 +594,14 @@ export function RehabExecution() {
                     <Switch
                       checked={showSkeleton}
                       onCheckedChange={setShowSkeleton}
-                      className="data-[state=checked]:bg-emerald-500"
+                      className="data-[state=checked]:bg-emerald-300"
                     />
                   </div>
                 </div>
 
                 {jointAngle != null ? (
-                  <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm border border-teal-500/30 rounded-lg px-3 py-2">
-                    <p className="text-teal-300 text-xs">關節角度</p>
+                  <div className="absolute bottom-4 left-4 bg-black/70 backdrop-blur-sm border border-teal-300/30 rounded-lg px-3 py-2">
+                    <p className="text-teal-100 text-xs">關節角度</p>
                     <p className="text-white text-lg" style={{ fontWeight: 700 }}>
                       {jointAngle}°
                     </p>
@@ -623,7 +623,7 @@ export function RehabExecution() {
                   <div
                     className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs border ${
                       isStandard
-                        ? "bg-emerald-500/20 border-emerald-400/40 text-emerald-300"
+                        ? "bg-emerald-300/20 border-emerald-200/40 text-emerald-200"
                         : "bg-amber-500/20 border-amber-400/40 text-amber-300"
                     }`}
                     style={{ fontWeight: 600 }}
@@ -696,7 +696,7 @@ export function RehabExecution() {
                 aria-pressed={voiceEnabled}
               >
                 {voiceEnabled ? (
-                  <Volume2 className="w-4 h-4 text-teal-400" />
+                  <Volume2 className="w-4 h-4 text-teal-200" />
                 ) : (
                   <VolumeX className="w-4 h-4 text-slate-400" />
                 )}
@@ -711,7 +711,7 @@ export function RehabExecution() {
                   exit={{ opacity: 0, height: 0 }}
                   className="px-4 pt-3"
                 >
-                  <div className="bg-teal-600/80 rounded-xl px-3 py-2 flex items-center gap-2">
+                  <div className="bg-teal-300/80 rounded-xl px-3 py-2 flex items-center gap-2">
                     <Mic className="w-4 h-4 text-white flex-shrink-0" />
                     <p className="text-white text-xs">{currentPrompt}</p>
                   </div>
@@ -741,7 +741,7 @@ export function RehabExecution() {
 
               <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
                 <motion.div
-                  className="h-full bg-gradient-to-r from-teal-400 to-emerald-400 rounded-full"
+                  className="h-full bg-gradient-to-r from-teal-200 to-emerald-200 rounded-full"
                   animate={{ width: `${overallProgress * 100}%` }}
                 />
               </div>
@@ -764,9 +764,9 @@ export function RehabExecution() {
                         key={i}
                         className={`w-6 h-1.5 rounded-full ${
                           i < currentSet - 1
-                            ? "bg-emerald-400"
+                            ? "bg-emerald-200"
                             : i === currentSet - 1
-                              ? "bg-teal-400"
+                              ? "bg-teal-200"
                               : "bg-white/20"
                         }`}
                       />
@@ -778,7 +778,7 @@ export function RehabExecution() {
               <div className="bg-white/5 rounded-xl px-3 py-2 border border-white/10">
                 <div className="flex items-center justify-between mb-1">
                   <p className="text-slate-400 text-[10px]">姿勢偵測</p>
-                  <p className="text-emerald-400 text-[10px]" style={{ fontWeight: 600 }}>
+                  <p className="text-emerald-200 text-[10px]" style={{ fontWeight: 600 }}>
                     {keypointTotal} 關節點 · {activeKeypoints} 可見
                   </p>
                 </div>
@@ -798,7 +798,7 @@ export function RehabExecution() {
                     return next;
                   })
                 }
-                className="flex-1 h-11 rounded-xl bg-teal-500 flex items-center justify-center gap-2 text-white text-sm"
+                className="flex-1 h-11 rounded-xl bg-teal-300 flex items-center justify-center gap-2 text-white text-sm"
                 style={{ fontWeight: 600 }}
               >
                 {isPaused ? (
@@ -839,7 +839,7 @@ export function RehabExecution() {
                   <h2 className="text-white text-2xl" style={{ fontWeight: 800 }}>
                     「{exercise.name}」完成！
                   </h2>
-                  <p className="text-teal-200 text-sm mt-1">
+                  <p className="text-teal-50 text-sm mt-1">
                     今天又多前進一步，繼續保持！
                   </p>
                 </motion.div>
@@ -867,13 +867,13 @@ export function RehabExecution() {
                     <div className="flex justify-center gap-6 text-center">
                       <div>
                         <p className="text-slate-400 text-xs">動作品質</p>
-                        <p className="text-teal-300 text-2xl" style={{ fontWeight: 800 }}>
+                        <p className="text-teal-100 text-2xl" style={{ fontWeight: 800 }}>
                           {sessionResult.quality} 分
                         </p>
                       </div>
                       <div>
                         <p className="text-slate-400 text-xs">標準次數</p>
-                        <p className="text-emerald-300 text-2xl" style={{ fontWeight: 800 }}>
+                        <p className="text-emerald-200 text-2xl" style={{ fontWeight: 800 }}>
                           {validReps} 次
                         </p>
                       </div>
@@ -884,7 +884,7 @@ export function RehabExecution() {
                         </p>
                       </div>
                     </div>
-                    <p className="text-emerald-300/90 text-sm mt-3" style={{ fontWeight: 700 }}>
+                    <p className="text-emerald-200/90 text-sm mt-3" style={{ fontWeight: 700 }}>
                       🔓 下一關已解鎖，成果已同步給家人與醫師
                     </p>
                   </div>
@@ -892,7 +892,7 @@ export function RehabExecution() {
 
                 <button
                   onClick={() => navigate("/patient")}
-                  className="px-8 py-3 bg-gradient-to-r from-teal-500 to-emerald-500 text-white rounded-xl"
+                  className="px-8 py-3 bg-gradient-to-r from-teal-300 to-emerald-300 text-white rounded-xl"
                   style={{ fontWeight: 600 }}
                 >
                   返回闖關地圖

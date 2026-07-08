@@ -66,6 +66,26 @@
   height: min(520px, 75dvh) !important;
 }
 
+/* 醫師端 / 家屬端客服視窗 — 對話內文字約放大 10%（portaled 至 body，需獨立 class） */
+.portal-chat-text-scale.portal-chat-panel {
+  height: min(550px, 75dvh) !important;
+}
+
+.portal-chat-text-scale .text-\[10px\] {
+  font-size: calc(10px * 1.1) !important;
+  line-height: 1.4 !important;
+}
+
+.portal-chat-text-scale .text-xs {
+  font-size: calc(12px * 1.1) !important;
+  line-height: 1.4 !important;
+}
+
+.portal-chat-text-scale .text-sm {
+  font-size: calc(14px * 1.1) !important;
+  line-height: 1.45 !important;
+}
+
 /* 家屬儀表板圖表區 — 緊湊標題以塞入一屏 */
 .portal-large-text .family-dashboard-charts .portal-chart-title {
   font-size: calc(12px * var(--portal-scale)) !important;

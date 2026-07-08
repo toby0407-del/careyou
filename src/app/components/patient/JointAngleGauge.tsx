@@ -30,12 +30,12 @@ export function JointAngleGauge({ exercise, angle, compact = false }: JointAngle
   return (
     <div
       className={`rounded-2xl border ${
-        inRange ? "bg-emerald-500/10 border-emerald-500/30" : "bg-amber-500/10 border-amber-500/35"
+        inRange ? "bg-emerald-300/10 border-emerald-300/30" : "bg-amber-500/10 border-amber-500/35"
       } ${compact ? "px-3 py-2.5" : "px-4 py-3"}`}
     >
       <div className="flex items-center justify-between mb-1">
         <p className="text-slate-400 text-[10px]">{getJointLabel(joint)}即時角度</p>
-        <p className={`text-[10px] font-semibold ${inRange ? "text-emerald-400" : "text-amber-300"}`}>
+        <p className={`text-[10px] font-semibold ${inRange ? "text-emerald-200" : "text-amber-300"}`}>
           {inRange ? "目標範圍內" : "調整中"}
         </p>
       </div>
@@ -46,7 +46,7 @@ export function JointAngleGauge({ exercise, angle, compact = false }: JointAngle
           initial={{ scale: 1.08 }}
           animate={{ scale: 1 }}
           className={`${compact ? "text-4xl" : "text-5xl"} leading-none font-extrabold ${
-            angle != null ? (inRange ? "text-emerald-300" : "text-white") : "text-slate-500"
+            angle != null ? (inRange ? "text-emerald-200" : "text-white") : "text-slate-500"
           }`}
         >
           {angle != null ? angle : "--"}
@@ -61,7 +61,7 @@ export function JointAngleGauge({ exercise, angle, compact = false }: JointAngle
         />
         {angle != null && (
           <motion.div
-            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] border-2 border-teal-400"
+            className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-white shadow-[0_0_8px_rgba(255,255,255,0.8)] border-2 border-teal-200"
             style={{ left: `calc(${markerPct}% - 6px)` }}
             layout
           />

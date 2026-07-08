@@ -392,14 +392,14 @@ export function AiCompanionWidget({
               className="fixed inset-0 z-[9999] flex items-center justify-center p-4 pointer-events-none"
             >
               <div
-                className="patient-large-text patient-chat-panel pointer-events-auto w-full max-w-[min(480px,calc(100vw-2rem))] bg-white rounded-3xl shadow-2xl border border-teal-100 overflow-hidden flex flex-col max-h-[min(640px,calc(100dvh-4rem))]"
+                className="patient-large-text patient-chat-panel pointer-events-auto w-full max-w-[min(480px,calc(100vw-2rem))] bg-white rounded-3xl shadow-2xl border border-teal-50 overflow-hidden flex flex-col max-h-[min(640px,calc(100dvh-4rem))]"
                 role="dialog"
                 aria-modal="true"
                 aria-label="小伴 AI 陪伴對話"
                 onClick={(e) => e.stopPropagation()}
               >
                 {/* Header */}
-                <div className="bg-gradient-to-r from-teal-500 to-emerald-500 px-4 py-3 flex items-center justify-between flex-shrink-0">
+                <div className="bg-gradient-to-r from-teal-300 to-emerald-300 px-4 py-3 flex items-center justify-between flex-shrink-0">
                   <div className="flex items-center gap-3">
                     <div className="w-11 h-11 rounded-full bg-white/90 border-2 border-white overflow-hidden flex-shrink-0">
                       <img
@@ -461,7 +461,7 @@ export function AiCompanionWidget({
                       className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
                     >
                       {msg.sender === "ai" && (
-                        <div className="w-8 h-8 rounded-full bg-teal-100 border border-teal-200 overflow-hidden flex-shrink-0 mr-2 mt-0.5">
+                        <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-50 overflow-hidden flex-shrink-0 mr-2 mt-0.5">
                           <img
                             src={POSE_IMAGE.cheer}
                             alt=""
@@ -474,8 +474,8 @@ export function AiCompanionWidget({
                         <div
                           className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-line ${
                             msg.sender === "user"
-                              ? "bg-teal-500 text-white rounded-tr-sm"
-                              : "bg-white text-slate-700 rounded-tl-sm shadow-sm border border-teal-100/70"
+                              ? "bg-teal-300 text-white rounded-tr-sm"
+                              : "bg-white text-slate-700 rounded-tl-sm shadow-sm border border-teal-50/70"
                           }`}
                         >
                           {msg.text}
@@ -493,7 +493,7 @@ export function AiCompanionWidget({
 
                   {isTyping && (
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-teal-100 border border-teal-200 overflow-hidden">
+                      <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-50 overflow-hidden">
                         <img
                           src={POSE_IMAGE.tip}
                           alt=""
@@ -501,11 +501,11 @@ export function AiCompanionWidget({
                           aria-hidden
                         />
                       </div>
-                      <div className="bg-white border border-teal-100 shadow-sm px-3 py-2.5 rounded-2xl rounded-tl-sm flex gap-1">
+                      <div className="bg-white border border-teal-50 shadow-sm px-3 py-2.5 rounded-2xl rounded-tl-sm flex gap-1">
                         {[0, 1, 2].map((i) => (
                           <motion.div
                             key={i}
-                            className="w-2 h-2 bg-teal-400 rounded-full"
+                            className="w-2 h-2 bg-teal-200 rounded-full"
                             animate={{ y: [0, -4, 0] }}
                             transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
                           />
@@ -523,7 +523,7 @@ export function AiCompanionWidget({
                       <button
                         key={q}
                         onClick={() => sendText(q)}
-                        className="px-3.5 py-2 rounded-full bg-teal-50 border border-teal-100 text-teal-700 text-xs hover:bg-teal-100 transition-colors"
+                        className="px-3.5 py-2 rounded-full bg-teal-50 border border-teal-50 text-teal-400 text-xs hover:bg-teal-50 transition-colors"
                         style={{ fontWeight: 700 }}
                       >
                         {q}
@@ -557,7 +557,7 @@ export function AiCompanionWidget({
                       placeholder={isListening ? "正在聽你說話…" : "跟小伴說說話..."}
                       aria-label="輸入訊息給小伴"
                       disabled={isListening}
-                      className="flex-1 bg-slate-100 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-teal-300 transition-all disabled:opacity-70"
+                      className="flex-1 bg-slate-100 rounded-xl px-4 py-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:ring-2 focus:ring-teal-100 transition-all disabled:opacity-70"
                     />
                     {isSpeechRecognitionSupported() && (
                       <motion.button
@@ -571,7 +571,7 @@ export function AiCompanionWidget({
                         className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors shadow-md ${
                           isListening
                             ? "bg-rose-500 text-white animate-pulse"
-                            : "bg-teal-50 border border-teal-200 text-teal-600 hover:bg-teal-100"
+                            : "bg-teal-50 border border-teal-50 text-teal-300 hover:bg-teal-50"
                         } disabled:opacity-40`}
                       >
                         <Mic className="w-5 h-5" />
@@ -583,7 +583,7 @@ export function AiCompanionWidget({
                       onClick={() => sendText(input)}
                       disabled={!input.trim() || isListening}
                       aria-label="送出訊息"
-                      className="w-12 h-12 rounded-xl bg-teal-500 flex items-center justify-center disabled:opacity-40 transition-opacity shadow-md"
+                      className="w-12 h-12 rounded-xl bg-teal-300 flex items-center justify-center disabled:opacity-40 transition-opacity shadow-md"
                     >
                       <Send className="w-5 h-5 text-white" />
                     </motion.button>
@@ -609,7 +609,7 @@ export function AiCompanionWidget({
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: panelAlignEnd ? 4 : -4 }}
                 transition={{ duration: 0.2 }}
-                className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-teal-600/80 text-[11px] whitespace-nowrap leading-none ${
+                className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-teal-300/80 text-[11px] whitespace-nowrap leading-none ${
                   panelAlignEnd
                     ? "right-full mr-2 text-right"
                     : "left-full ml-2 text-left"
@@ -637,7 +637,7 @@ export function AiCompanionWidget({
             aria-expanded={false}
           >
               <>
-                <div className="absolute inset-0 bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-600" />
+                <div className="absolute inset-0 bg-gradient-to-br from-teal-300 via-teal-300 to-emerald-300" />
                 <div className="absolute inset-[9px] rounded-full bg-white/12 border border-white/25 flex items-center justify-center">
                   <Bot className="w-9 h-9 text-white drop-shadow-sm" strokeWidth={1.75} aria-hidden />
                 </div>
@@ -652,7 +652,7 @@ export function AiCompanionWidget({
                   aria-hidden
                 />
                 <span
-                  className="absolute bottom-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-300 border-2 border-white shadow-sm"
+                  className="absolute bottom-1.5 right-1.5 w-2.5 h-2.5 rounded-full bg-emerald-200 border-2 border-white shadow-sm"
                   title="在線"
                   aria-hidden
                 />

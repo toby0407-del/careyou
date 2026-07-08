@@ -18,12 +18,12 @@ export interface WeeklyDay {
 export interface MonthlyPoint {
   date: string;
   score: number;
-  quality: number;
+  quality: number | null;
 }
 
 export interface PainPoint {
   day: string;
-  level: number;
+  level: number | null;
 }
 
 export interface BodyRecoveryPoint {
@@ -41,8 +41,16 @@ export interface PatientAnalytics {
   pain: PainPoint[];
   qualityWeekly: { week: string; score: number }[];
   bodyRecovery: BodyRecoveryPoint[];
-  painToday: number;
-  qualityAvg: number;
+  /** 今日是否有實際訓練紀錄 */
+  hasTodayTraining: boolean;
+  /** 今日疼痛指數；未訓練時為 null */
+  painToday: number | null;
+  /** 今日動作品質；未訓練時為 null */
+  qualityToday: number | null;
+  /** @deprecated 使用 qualityToday */
+  qualityAvg: number | null;
+  /** 近 7 日有訓練日的平均品質；全無則 null */
+  weekQualityAvg: number | null;
 }
 
 function dayLabel(date: string, isToday: boolean): string {
@@ -56,8 +64,16 @@ function movingPain(rate: number): number {
   return 5;
 }
 
+/** 僅在有實際訓練紀錄時才推算疼痛指數 */
+function painForDay(stats: ReturnType<typeof getStatsForDate>): number | null {
+  if (stats.completed === 0 || stats.accuracy === 0) return null;
+  return movingPain(stats.completionPct);
+}
+
 function buildBaseAnalytics(): PatientAnalytics {
   const summary = getTodaySummary();
+  const hasTodayTraining = summary.todaySessions.length > 0;
+  const qualityToday = summary.avgQualityToday;
   const last30Dates = getCalendarDateRange(30);
   const last7Dates = last30Dates.slice(-7);
   const prev7Dates = last30Dates.slice(-14, -7);
@@ -76,7 +92,6 @@ function buildBaseAnalytics(): PatientAnalytics {
   const overallCompliance = Math.round(
     stats30.reduce((sum, day) => sum + day.completionPct, 0) / Math.max(1, stats30.length)
   );
-  const qualityAvg = summary.avgQualityToday ?? 0;
 
   const weekly = stats7.map((day, index) => ({
     day: dayLabel(day.date, isAppToday(day.date)),
@@ -90,24 +105,32 @@ function buildBaseAnalytics(): PatientAnalytics {
     .map((day) => ({
       date: format(new Date(day.date), "M/d"),
       score: day.completionPct,
-      quality: day.accuracy,
+      quality: day.accuracy > 0 ? day.accuracy : null,
     }));
 
   const pain = stats7.map((day) => ({
     day: dayLabel(day.date, isAppToday(day.date)),
-    level: movingPain(day.completionPct),
+    level: painForDay(day),
   }));
+
+  const trainedDays7 = stats7.filter((day) => day.completed > 0 && day.accuracy > 0);
+  const weekQualityAvg = trainedDays7.length
+    ? Math.round(trainedDays7.reduce((sum, day) => sum + day.accuracy, 0) / trainedDays7.length)
+    : null;
 
   const qualityWeekly = Array.from({ length: 4 }, (_, index) => {
     const chunk = stats30.slice(
       Math.max(0, stats30.length - (4 - index) * 7),
       stats30.length - (3 - index) * 7 || undefined
     );
-    const avg = chunk.length
-      ? Math.round(chunk.reduce((sum, day) => sum + day.accuracy, 0) / chunk.length)
-      : qualityAvg;
-    return { week: `W${index + 1}`, score: avg };
+    const trained = chunk.filter((day) => day.completed > 0 && day.accuracy > 0);
+    const avg = trained.length
+      ? Math.round(trained.reduce((sum, day) => sum + day.accuracy, 0) / trained.length)
+      : null;
+    return { week: `W${index + 1}`, score: avg ?? 0 };
   });
+
+  const todayStats = stats7[stats7.length - 1];
 
   return {
     streakDays: getStreakDays(),
@@ -115,7 +138,7 @@ function buildBaseAnalytics(): PatientAnalytics {
     kpi: [
       { name: "今日完成", value: summary.progressPct },
       { name: "本週均分", value: weekAvg },
-      { name: "動作品質", value: qualityAvg },
+      { name: "動作品質", value: qualityToday ?? 0 },
       { name: "整體遵從", value: overallCompliance },
     ],
     weekly,
@@ -130,8 +153,11 @@ function buildBaseAnalytics(): PatientAnalytics {
       { part: "肌力", score: 72, fullMark: 100 },
       { part: "平衡", score: 60, fullMark: 100 },
     ],
-    painToday: pain[pain.length - 1]?.level ?? 2,
-    qualityAvg,
+    hasTodayTraining,
+    painToday: hasTodayTraining ? painForDay(todayStats!) : null,
+    qualityToday,
+    qualityAvg: qualityToday,
+    weekQualityAvg,
   };
 }
 
@@ -169,19 +195,28 @@ function makeAnalytics(
     monthly: base.monthly.map((point, index) => ({
       ...point,
       score: Math.min(100, Math.round(point.score * (compliance / 87) * (0.85 + index * 0.02))),
-      quality: Math.min(98, Math.round(point.quality * (quality / 88))),
+      quality:
+        point.quality == null
+          ? null
+          : Math.min(98, Math.round(point.quality * (quality / 88))),
     })),
     pain: base.pain.map((point) => ({
       ...point,
-      level: Math.max(1, Math.min(10, Math.round(painBase + (point.level - 2) * 0.5))),
+      level:
+        point.level == null
+          ? null
+          : Math.max(1, Math.min(10, Math.round(painBase + (point.level - 2) * 0.5))),
     })),
     qualityWeekly: base.qualityWeekly.map((point, index) => ({
       week: point.week,
       score: Math.min(98, Math.round(quality - (3 - index) * 4)),
     })),
     bodyRecovery: bodyParts,
-    painToday: Math.max(1, painBase),
-    qualityAvg: quality,
+    hasTodayTraining: base.hasTodayTraining,
+    painToday: base.hasTodayTraining ? Math.max(1, painBase) : null,
+    qualityToday: base.hasTodayTraining ? quality : null,
+    qualityAvg: base.hasTodayTraining ? quality : null,
+    weekQualityAvg: base.weekQualityAvg,
   };
 }
 

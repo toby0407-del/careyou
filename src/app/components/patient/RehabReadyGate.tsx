@@ -38,7 +38,7 @@ export function RehabReadyOverlays({
     <>
       {isLoading && (
         <div className="absolute inset-0 z-40 bg-slate-900/95 flex flex-col items-center justify-center gap-5 px-6">
-          <Loader2 className="w-10 h-10 text-teal-400 animate-spin" />
+          <Loader2 className="w-10 h-10 text-teal-200 animate-spin" />
           <div className="text-center">
             <h2 className="text-white mb-2">
               {cameraState === "loading-model" ? "載入姿勢偵測模型..." : "正在開啟鏡頭..."}
@@ -54,20 +54,20 @@ export function RehabReadyOverlays({
             <Hand className="w-3.5 h-3.5 text-amber-300" />
             <span className="text-amber-200 text-xs font-semibold">等待舉手確認</span>
           </div>
-          <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm border border-emerald-500/40 rounded-full px-3 py-1.5">
-            <Activity className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-emerald-400 text-xs font-semibold">
+          <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm border border-emerald-300/40 rounded-full px-3 py-1.5">
+            <Activity className="w-3.5 h-3.5 text-emerald-200" />
+            <span className="text-emerald-200 text-xs font-semibold">
               {engine === "blazepose" ? "33" : "17"} 測點 · {activeKeypoints} 偵測中 · {fps} FPS
               {activeKeypoints === 0 && " · 請站入畫面"}
             </span>
-            <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+            <div className="w-2 h-2 bg-emerald-200 rounded-full animate-pulse" />
           </div>
           <label className="flex items-center gap-2 bg-black/60 backdrop-blur-sm border border-white/15 rounded-full px-3 py-1.5 cursor-pointer w-fit">
             <input
               type="checkbox"
               checked={showSkeleton}
               onChange={(e) => onToggleSkeleton(e.target.checked)}
-              className="accent-emerald-500"
+              className="accent-emerald-300"
             />
             <span className="text-white/80 text-xs">顯示骨架測點</span>
           </label>
@@ -117,7 +117,7 @@ export function RehabReadyPanel({
           <h2 className="text-white text-sm font-bold">{exercise.name}</h2>
         </div>
         <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
-          <Camera className="w-4 h-4 text-teal-400" />
+          <Camera className="w-4 h-4 text-teal-200" />
         </div>
       </div>
 
@@ -150,7 +150,7 @@ export function RehabReadyPanel({
         <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-slate-400 text-[10px]">姿勢偵測</p>
-            <p className="text-emerald-400 text-[10px] font-semibold">
+            <p className="text-emerald-200 text-[10px] font-semibold">
               {keypointTotal} 關節點 · {activeKeypoints} 可見
             </p>
           </div>

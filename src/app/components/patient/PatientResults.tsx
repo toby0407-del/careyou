@@ -133,7 +133,7 @@ function DayDetailPanel({ day }: { day: DayResult }) {
           const Icon = s.icon;
           const inner = (
             <>
-              <Icon className="w-4 h-4 text-teal-500 flex-shrink-0" />
+              <Icon className="w-4 h-4 text-teal-300 flex-shrink-0" />
               <div>
                 <p className="text-base text-slate-800 leading-none" style={{ fontWeight: 800 }}>
                   {s.value}
@@ -148,7 +148,7 @@ function DayDetailPanel({ day }: { day: DayResult }) {
                 key={s.label}
                 type="button"
                 onClick={() => setCompletionOpen(true)}
-                className="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center gap-2 text-left hover:border-teal-200 hover:bg-teal-50/60 transition-colors"
+                className="bg-white rounded-xl border border-slate-100 px-3 py-2 flex items-center gap-2 text-left hover:border-teal-50 hover:bg-teal-50/60 transition-colors"
                 aria-label="查看當日各項目完成狀態"
               >
                 {inner}
@@ -167,7 +167,7 @@ function DayDetailPanel({ day }: { day: DayResult }) {
       </div>
 
       <Dialog open={completionOpen} onOpenChange={setCompletionOpen}>
-        <DialogContent className="sm:max-w-md rounded-2xl border-emerald-100 p-0 overflow-hidden">
+        <DialogContent className="sm:max-w-md rounded-2xl border-emerald-50 p-0 overflow-hidden">
           <DialogHeader className="px-5 pt-5 pb-3 border-b border-slate-100 text-left">
             <DialogTitle className="text-slate-800 text-base" style={{ fontWeight: 800 }}>
               當日完成項目 · {day.completed}/{day.total}
@@ -182,20 +182,20 @@ function DayDetailPanel({ day }: { day: DayResult }) {
                 key={ex.name}
                 className={`flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border ${
                   ex.completed
-                    ? "bg-emerald-50/80 border-emerald-100"
+                    ? "bg-emerald-50/80 border-emerald-50"
                     : "bg-slate-50 border-slate-100"
                 }`}
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   {ex.completed ? (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-500 flex-shrink-0" aria-hidden />
+                    <CheckCircle2 className="w-5 h-5 text-emerald-300 flex-shrink-0" aria-hidden />
                   ) : (
                     <Circle className="w-5 h-5 text-slate-300 flex-shrink-0" aria-hidden />
                   )}
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span
-                        className="text-[10px] text-teal-600 bg-teal-50 px-1.5 py-0.5 rounded flex-shrink-0"
+                        className="text-[10px] text-teal-300 bg-teal-50 px-1.5 py-0.5 rounded flex-shrink-0"
                         style={{ fontWeight: 700 }}
                       >
                         Lv.{ex.level}
@@ -204,7 +204,7 @@ function DayDetailPanel({ day }: { day: DayResult }) {
                         {ex.name}
                       </span>
                     </div>
-                    <p className={`text-[10px] mt-0.5 ${ex.completed ? "text-emerald-600" : "text-slate-400"}`}>
+                    <p className={`text-[10px] mt-0.5 ${ex.completed ? "text-emerald-300" : "text-slate-400"}`}>
                       {ex.completed ? "已完成" : "尚未完成"}
                     </p>
                   </div>
@@ -341,7 +341,7 @@ export function PatientResults() {
     <div className="patient-results-ui h-full flex gap-2 overflow-hidden">
       <div className="flex-1 min-w-0 flex gap-3 overflow-hidden">
       {/* Left: Calendar */}
-      <div className="flex-[3] results-calendar-col flex flex-col min-w-0 bg-white/85 rounded-2xl border border-emerald-100 p-4 overflow-hidden shadow-sm">
+      <div className="flex-[3] results-calendar-col flex flex-col min-w-0 bg-white/85 rounded-2xl border border-emerald-50 p-4 overflow-hidden shadow-sm">
         {/* Month nav */}
         <div className="flex items-center justify-center mb-3 flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -405,15 +405,15 @@ export function PatientResults() {
                 disabled={!hasData}
                 className={`results-day-cell relative rounded-xl flex flex-col items-center justify-center transition-all border-2 min-h-[52px] ${
                   isSelected
-                    ? "border-teal-500 shadow-md ring-2 ring-teal-100"
+                    ? "border-teal-300 shadow-md ring-2 ring-teal-50"
                     : hasData
-                    ? "border-transparent hover:border-teal-200 cursor-pointer"
+                    ? "border-transparent hover:border-teal-50 cursor-pointer"
                     : "border-transparent cursor-default opacity-60"
                 }`}
                 style={{ background: hasData ? color.bg : "#f8fafc" }}
               >
                 {isToday && (
-                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-teal-500" />
+                  <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-teal-300" />
                 )}
                 <span
                   className="text-sm leading-none"
@@ -445,14 +445,14 @@ export function PatientResults() {
               icon: Target,
               label: "動作品質",
               value: monthStats ? `${monthStats.avgQuality}%` : "--",
-              color: "text-teal-500",
+              color: "text-teal-300",
             },
             { icon: Star, label: "總星數", value: `${totalStars} ★`, color: "text-amber-500" },
             {
               icon: Dumbbell,
               label: "今日完成",
               value: `${todaySummary.completed}/${todaySummary.total}`,
-              color: "text-emerald-500",
+              color: "text-emerald-300",
             },
           ].map((s) => {
             const Icon = s.icon;
@@ -472,7 +472,7 @@ export function PatientResults() {
       </div>
 
       {/* Right: Detail panel */}
-      <div className="flex-[2] results-detail-col min-w-[280px] bg-white/85 rounded-2xl border border-emerald-100 p-4 overflow-hidden shadow-sm">
+      <div className="flex-[2] results-detail-col min-w-[280px] bg-white/85 rounded-2xl border border-emerald-50 p-4 overflow-hidden shadow-sm">
         <AnimatePresence mode="wait">
           {selectedDay ? (
             <DayDetailPanel key={selectedDay.date} day={selectedDay} />

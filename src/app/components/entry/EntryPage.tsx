@@ -20,7 +20,7 @@ const roles = [
     description: "查看今日訓練計畫，開始復健運動",
     gradient: "from-teal-500 to-emerald-600",
     bg: "bg-teal-50",
-    border: "border-teal-200",
+    border: "border-teal-300",
     iconBg: "bg-teal-500",
     textColor: "text-teal-700",
     btnGradient: "from-teal-500 to-emerald-500",

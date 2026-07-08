@@ -112,35 +112,47 @@ function getKpiRingColor(value: number): string {
   return "#4ade80";
 }
 
-function KpiRadial({ name, value, ringBg }: { name: string; value: number; ringBg: string }) {
-  const fill = getKpiRingColor(value);
+function KpiRadial({
+  name,
+  value,
+  ringBg,
+  empty = false,
+}: {
+  name: string;
+  value: number;
+  ringBg: string;
+  empty?: boolean;
+}) {
+  const fill = empty ? "#cbd5e1" : getKpiRingColor(value);
   const size = 56;
   const strokeWidth = 6;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.max(0, Math.min(100, value));
-  const dashOffset = circumference * (1 - clamped / 100);
+  const dashOffset = empty ? circumference : circumference * (1 - clamped / 100);
 
   return (
     <div className="flex flex-col items-center justify-center">
       <div className="relative w-[56px] h-[56px]">
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
           <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={ringBg} strokeWidth={strokeWidth} />
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke={fill}
-            strokeWidth={strokeWidth}
-            strokeLinecap="round"
-            strokeDasharray={circumference}
-            strokeDashoffset={dashOffset}
-          />
+          {!empty && (
+            <circle
+              cx={size / 2}
+              cy={size / 2}
+              r={radius}
+              fill="none"
+              stroke={fill}
+              strokeWidth={strokeWidth}
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={dashOffset}
+            />
+          )}
         </svg>
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-          <span className="text-slate-600 text-[10px] leading-none" style={{ fontWeight: 700 }}>
-            {value}%
+          <span className="text-slate-400 text-[10px] leading-none" style={{ fontWeight: 700 }}>
+            {empty ? "—" : `${value}%`}
           </span>
         </div>
       </div>
@@ -192,6 +204,13 @@ export function PatientAnalyticsPanel({
   const trendClass = delta >= 0 ? t.trendUp : t.trendDown;
   const trendLabel = delta >= 0 ? `+${delta}%` : `${delta}%`;
   const [expandedChart, setExpandedChart] = useState<ChartId | null>(null);
+
+  const painSub =
+    analytics.painToday != null ? `今日 ${analytics.painToday}/10` : "今日尚無訓練資料";
+  const qualitySub =
+    analytics.qualityToday != null
+      ? `今日 ${analytics.qualityToday} 分`
+      : "今日尚無訓練資料";
 
   const charts = useMemo(
     () =>
@@ -268,7 +287,7 @@ export function PatientAnalyticsPanel({
         {
           id: "pain" as const,
           title: "疼痛指數趨勢",
-          sub: `今日 ${analytics.painToday}/10`,
+          sub: painSub,
           delay: 0.14,
           render: (height: number | string) => (
             <ResponsiveContainer width="100%" height={height}>
@@ -276,8 +295,18 @@ export function PatientAnalyticsPanel({
                 <CartesianGrid strokeDasharray="3 3" stroke={t.gridStroke} vertical={false} />
                 <XAxis dataKey="day" tick={{ fontSize: CHART_TICK, fill: "#94a3b8" }} axisLine={false} tickLine={false} />
                 <YAxis domain={[0, 10]} tick={{ fontSize: CHART_TICK, fill: "#94a3b8" }} axisLine={false} tickLine={false} width={28} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v) => [`${v}/10`, "疼痛"]} />
-                <Line type="monotone" dataKey="level" stroke={t.painStroke} strokeWidth={2.5} dot={{ r: 4, fill: t.painDot }} />
+                <Tooltip
+                  contentStyle={tooltipStyle}
+                  formatter={(v) => [v == null ? "尚無" : `${v}/10`, "疼痛"]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="level"
+                  stroke={t.painStroke}
+                  strokeWidth={2.5}
+                  dot={{ r: 4, fill: t.painDot }}
+                  connectNulls={false}
+                />
               </LineChart>
             </ResponsiveContainer>
           ),
@@ -301,7 +330,7 @@ export function PatientAnalyticsPanel({
         {
           id: "quality" as const,
           title: "動作品質週趨勢",
-          sub: `本週平均 ${analytics.qualityAvg} 分`,
+          sub: qualitySub,
           delay: 0.2,
           render: (height: number | string) => (
             <ResponsiveContainer width="100%" height={height}>
@@ -328,7 +357,7 @@ export function PatientAnalyticsPanel({
         delay: number;
         render: (height: number | string, barSize?: number) => ReactNode;
       }>,
-    [analytics, t]
+    [analytics, t, painSub, qualitySub]
   );
 
   const activeChart = charts.find((chart) => chart.id === expandedChart);
@@ -358,7 +387,13 @@ export function PatientAnalyticsPanel({
           className={`${t.card} flex-row items-center justify-center gap-5 py-2 flex-shrink-0`}
         >
           {analytics.kpi.map((kpi) => (
-            <KpiRadial key={kpi.name} name={kpi.name} value={kpi.value} ringBg={t.kpiRing} />
+            <KpiRadial
+              key={kpi.name}
+              name={kpi.name}
+              value={kpi.value}
+              ringBg={t.kpiRing}
+              empty={kpi.name === "動作品質" && !analytics.hasTodayTraining}
+            />
           ))}
           <div className={`h-10 w-px ${t.kpiDivider}`} />
           <div className="text-center">

@@ -145,7 +145,7 @@ export function ArchipelagoChapterMap({ chapter, onSelectIsland }: ArchipelagoCh
                   isCurrent
                     ? "bg-amber-100/90 border-amber-300 text-amber-950"
                     : completed
-                    ? "bg-emerald-50/90 border-emerald-200 text-slate-800"
+                    ? "bg-emerald-50/90 border-emerald-100 text-slate-800"
                     : "bg-black/40 border-white/10 text-white"
                 }`}
               >

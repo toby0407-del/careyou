@@ -33,11 +33,11 @@ const variantTheme: Record<
     iconClass: "text-sky-500",
   },
   patient: {
-    accent: "text-teal-600",
+    accent: "text-teal-300",
     accentSoft: "bg-teal-50",
-    accentBorder: "border-teal-100",
-    gradient: "from-teal-500 to-emerald-500",
-    iconClass: "text-teal-600",
+    accentBorder: "border-teal-50",
+    gradient: "from-teal-300 to-emerald-300",
+    iconClass: "text-teal-300",
   },
 };
 

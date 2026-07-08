@@ -18,11 +18,11 @@ const THEMES = {
     chip: "bg-white/80 border-sky-100",
   },
   patient: {
-    border: "border-teal-100",
+    border: "border-teal-50",
     bg: "bg-gradient-to-r from-teal-50/90 to-emerald-50/60",
-    accent: "#0d9488",
-    text: "text-teal-600",
-    chip: "bg-white/80 border-teal-100",
+    accent: "#5eead4",
+    text: "text-teal-300",
+    chip: "bg-white/80 border-teal-50",
   },
 };
 

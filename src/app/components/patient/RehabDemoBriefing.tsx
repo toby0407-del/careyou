@@ -44,12 +44,12 @@ export function RehabDemoBriefing({ exercise, onBack, onContinue }: RehabDemoBri
 
         <div className="patient-briefing-stats grid grid-cols-3 gap-1.5 px-4 py-3">
           <div className="rounded-2xl bg-white/5 border border-white/10 px-2 py-2.5 text-center min-w-0">
-            <Dumbbell className="w-4 h-4 text-teal-300 mx-auto mb-1" />
+            <Dumbbell className="w-4 h-4 text-teal-100 mx-auto mb-1" />
             <p className="briefing-stat-label text-slate-400">組數</p>
             <p className="briefing-stat-value text-white font-bold mt-0.5">{exercise.sets} 組</p>
           </div>
           <div className="rounded-2xl bg-white/5 border border-white/10 px-2 py-2.5 text-center min-w-0">
-            <Repeat className="w-4 h-4 text-emerald-300 mx-auto mb-1" />
+            <Repeat className="w-4 h-4 text-emerald-200 mx-auto mb-1" />
             <p className="briefing-stat-label text-slate-400">每組</p>
             <p className="briefing-stat-value text-white font-bold mt-0.5">{exercise.repsPerSet} 次</p>
           </div>
@@ -73,7 +73,7 @@ export function RehabDemoBriefing({ exercise, onBack, onContinue }: RehabDemoBri
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={onContinue}
-            className="flex-1 h-11 rounded-xl bg-gradient-to-r from-teal-500 to-emerald-500 text-white text-sm font-bold flex items-center justify-center gap-2"
+            className="flex-1 h-11 rounded-xl bg-gradient-to-r from-teal-300 to-emerald-300 text-white text-sm font-bold flex items-center justify-center gap-2"
           >
             <PlayCircle className="w-5 h-5" />
             準備開始
