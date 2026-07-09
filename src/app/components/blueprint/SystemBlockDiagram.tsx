@@ -21,8 +21,9 @@ const LAYERS = [
       { label: "全局入口", sub: "角色選擇", color: "#8b5cf6" },
       { label: "患者首頁", sub: "地圖·小伴·迴廊", color: "#0d9488" },
       { label: "復健執行", sub: "鏡頭·舉手·TTS", color: "#14b8a6" },
-      { label: "家屬端", sub: "總覽·迴廊·打氣", color: "#f43f5e" },
-      { label: "醫師後台", sub: "處方·同步", color: "#38bdf8" },
+      { label: "家屬端", sub: "總覽·迴廊·訊息", color: "#f43f5e" },
+      { label: "醫師後台", sub: "處方·訊息·分析", color: "#38bdf8" },
+      { label: "照護訊息", sub: "一對一私訊", color: "#ec4899" },
     ],
   },
   {
@@ -31,11 +32,11 @@ const LAYERS = [
     color: "#10b981",
     blocks: [
       { label: "小伴 AI", sub: "本機規則", color: "#8b5cf6" },
+      { label: "照護訊息", sub: "三端私訊", color: "#ec4899" },
       { label: "時光迴廊", sub: "6 張解鎖", color: "#0d9488" },
+      { label: "今日完成率", sub: "三端統一", color: "#10b981" },
       { label: "姿勢偵測", sub: "BlazePose", color: "#6366f1" },
-      { label: "語音教練", sub: "Web Speech", color: "#ec4899" },
       { label: "家人打氣", sub: "即時橫幅", color: "#f43f5e" },
-      { label: "里程碑", sub: "即時解鎖", color: "#f59e0b" },
     ],
   },
   {
@@ -44,10 +45,10 @@ const LAYERS = [
     color: "#f59e0b",
     blocks: [
       { label: "progressStore", sub: "統一進度", color: "#0d9488" },
+      { label: "careChat", sub: "照護私訊 v2", color: "#ec4899" },
       { label: "timeGallery", sub: "照片牆", color: "#14b8a6" },
       { label: "dailyReveal", sub: "每日 6 張", color: "#8b5cf6" },
       { label: "encouragements", sub: "家人訊息", color: "#f43f5e" },
-      { label: "companionAI", sub: "小伴記憶", color: "#a78bfa" },
     ],
   },
   {
@@ -75,6 +76,7 @@ const PIPELINE = [
 const SYNC = [
   { from: "訓練完成", to: "progressStore", color: "#0d9488" },
   { from: "通關解鎖", to: "時光迴廊", color: "#8b5cf6" },
+  { from: "照護訊息", to: "三端同步", color: "#ec4899" },
   { from: "家人打氣", to: "小伴 AI", color: "#f43f5e" },
   { from: "醫師設患者", to: "三端同步", color: "#38bdf8" },
 ];
@@ -88,7 +90,7 @@ export function SystemBlockDiagram() {
           <p className="text-violet-950 text-[11px]" style={{ fontWeight: 800 }}>
             {getAppDisplayName()} 系統架構方塊圖
           </p>
-          <p className="text-violet-600/70 text-[9px]">分層模組 · 跨端同步 · 復健管線 · 時光迴廊</p>
+          <p className="text-violet-600/70 text-[9px]">分層模組 · 照護訊息 · 今日完成率 · 跨端同步</p>
         </div>
       </div>
 

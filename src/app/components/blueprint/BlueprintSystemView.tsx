@@ -1,13 +1,11 @@
 import { useNavigate } from "react-router";
 import {
   Zap,
-  Eye,
-  Code,
-  Package,
   Monitor,
   Smartphone,
   Sparkles,
   Images,
+  MessageCircle,
 } from "lucide-react";
 import { SystemBlockDiagram } from "./SystemBlockDiagram";
 import { Block, BlockLayer, BlockRow, BlockGrid } from "./BlueprintBlocks";
@@ -16,7 +14,7 @@ const TECH_STACK = [
   { layer: "Frontend", color: "#6366f1", items: ["React 18", "TS", "Tailwind", "Motion"] },
   { layer: "ML", color: "#8b5cf6", items: ["TF.js", "BlazePose", "MoveNet", "WebGL"] },
   { layer: "AI·語音", color: "#a78bfa", items: ["小伴本機", "Speech API", "TTS"] },
-  { layer: "資料", color: "#0d9488", items: ["progressStore", "localStorage", "Reveal"] },
+  { layer: "資料", color: "#0d9488", items: ["progressStore", "careChat", "Reveal"] },
   { layer: "圖表", color: "#f43f5e", items: ["Recharts", "Router", "Toast"] },
 ];
 
@@ -24,27 +22,27 @@ const USER_FLOWS = [
   {
     role: "患者",
     color: "#0d9488",
-    steps: ["地圖", "演示", "舉手", "訓練", "解鎖", "迴廊"],
+    steps: ["地圖", "演示", "訓練", "解鎖", "訊息", "迴廊"],
   },
   {
     role: "家屬",
     color: "#f43f5e",
-    steps: ["總覽", "迴廊", "打氣", "圖表", "預約", "客服"],
+    steps: ["總覽", "迴廊", "訊息", "圖表", "打氣", "預約"],
   },
   {
     role: "醫師",
     color: "#38bdf8",
-    steps: ["病患", "處方", "同步", "動態", "分析", "提醒"],
+    steps: ["選病患", "訊息", "處方", "分析", "迴廊", "提醒"],
   },
 ];
 
 const DESIGN_TOKENS = [
-  { name: "患者淡綠", hex: "#ecfdf5" },
+  { name: "入口綠", hex: "#f0fdfa" },
+  { name: "患者淡綠", hex: "#f0fdf9" },
   { name: "家屬玫瑰", hex: "#fff1f2" },
+  { name: "醫師天藍", hex: "#f0f9ff" },
   { name: "藍圖淡紫", hex: "#f5f3ff" },
-  { name: "品牌青", hex: "#0d9488" },
-  { name: "技術紫", hex: "#8b5cf6" },
-  { name: "專業藍", hex: "#38bdf8" },
+  { name: "照護訊息", hex: "#fce7f3" },
 ];
 
 const ML_PIPELINE = [
@@ -56,18 +54,18 @@ const ML_PIPELINE = [
 ];
 
 const FEATURES = [
+  { label: "照護訊息", sub: "一對一", icon: MessageCircle, color: "#ec4899" },
   { label: "小伴 AI", sub: "離線", icon: Sparkles, color: "#a78bfa" },
   { label: "時光迴廊", sub: "6 張", icon: Images, color: "#8b5cf6" },
-  { label: "30fps", sub: "即時", icon: Zap, color: "#eab308" },
-  { label: "本機", sub: "無需 API", icon: Package, color: "#0d9488" },
+  { label: "今日完成", sub: "三端", icon: Zap, color: "#10b981" },
 ];
 
 const PAGES = [
-  { path: "/", label: "入口", desc: "角色", color: "#8b5cf6" },
-  { path: "/patient", label: "患者", desc: "地圖·小伴", color: "#0d9488" },
+  { path: "/", label: "入口", desc: "四角色", color: "#8b5cf6" },
+  { path: "/patient", label: "患者", desc: "地圖·訊息", color: "#0d9488" },
   { path: "/patient/rehab/:id", label: "復健", desc: "鏡頭", color: "#10b981" },
-  { path: "/family", label: "家屬", desc: "迴廊", color: "#f43f5e" },
-  { path: "/doctor", label: "醫師", desc: "處方", color: "#38bdf8" },
+  { path: "/family", label: "家屬", desc: "迴廊·訊息", color: "#f43f5e" },
+  { path: "/doctor", label: "醫師", desc: "處方·訊息", color: "#38bdf8" },
   { path: "/blueprint", label: "藍圖", desc: "此頁", color: "#7c3aed" },
 ];
 
@@ -143,7 +141,7 @@ export function BlueprintSystemView() {
         </div>
 
         <div className="col-span-4">
-          <BlockLayer title="姿態偵測 · 新功能" color="#8b5cf6">
+          <BlockLayer title="姿態偵測 · 核心功能" color="#8b5cf6">
             <BlockRow
               blocks={ML_PIPELINE.map((p) => ({
                 key: p.label,

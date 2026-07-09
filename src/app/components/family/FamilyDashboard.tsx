@@ -175,7 +175,7 @@ export function FamilyDashboard() {
               <button
                 type="button"
                 onClick={() => setProfileOpen(true)}
-                className="min-w-0 text-left rounded-xl hover:bg-rose-50/80 transition-colors px-2 py-1 -mx-2"
+                className="min-w-0 text-left rounded-xl bg-rose-50/50 border border-rose-100/50 shadow-[0_2px_10px_rgba(251,113,133,0.12)] hover:bg-rose-50/80 hover:shadow-[0_4px_14px_rgba(251,113,133,0.16)] transition-all px-3 py-2 -mx-2"
                 aria-label="查看個人資料"
               >
                 <div className="flex items-center gap-2 flex-wrap">

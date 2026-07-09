@@ -33,7 +33,7 @@ export function Blueprint() {
                 <h1 className="text-violet-950 text-sm" style={{ fontWeight: 700 }}>
                   {getAppDisplayName()} 系統藍圖
                 </h1>
-                <p className="text-violet-600/80 text-[10px]">方塊圖 · 架構 · 技術規格 · v2026</p>
+                <p className="text-violet-600/80 text-[10px]">方塊圖 · 架構 · 技術規格 · v2026.07</p>
               </div>
             </div>
           </div>
