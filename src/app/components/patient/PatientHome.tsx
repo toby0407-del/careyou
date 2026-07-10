@@ -26,7 +26,7 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { DEFAULT_PATIENT_ID, getPatientProfile } from "../../data/patientProfiles";
-import { LevelMap } from "./LevelMap";
+import { IslandCarousel3D } from "./IslandCarousel3D";
 import { PatientResults } from "./PatientResults";
 import { PatientMilestones } from "./PatientMilestones";
 import { TimeGallery } from "../shared/TimeGallery";
@@ -254,7 +254,7 @@ export function PatientHome() {
           transition={{ duration: 0.18 }}
           className="h-full"
         >
-          {activeTab === "tasks" && <LevelMap />}
+          {activeTab === "tasks" && <IslandCarousel3D />}
           {activeTab === "results" && <PatientResults />}
           {activeTab === "milestones" && <PatientMilestones />}
           {activeTab === "gallery" && (
