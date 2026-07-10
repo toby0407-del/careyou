@@ -18,6 +18,7 @@ import {
 import { LLM_HISTORY_TURNS, CHAT_STORAGE_LIMIT } from "../../lib/companionConfig";
 import {
   ensureCompanionLlm,
+  getActiveLlmLabel,
   isCompanionLlmReady,
   isWebGpuSupported,
 } from "../../lib/companionLLM";
@@ -37,6 +38,7 @@ import {
 interface AiMessage {
   id: string;
   text: string;
+  thinking?: string;
   sender: "user" | "ai";
   time: string;
 }
@@ -267,7 +269,13 @@ export function AiCompanionWidget({
     (reply: AiReply) => {
       setMessages((prev) => [
         ...prev,
-        { id: `ai-${Date.now()}`, text: reply.text, sender: "ai", time: getTime() },
+        {
+          id: `ai-${Date.now()}`,
+          text: reply.text,
+          thinking: reply.thinking,
+          sender: "ai",
+          time: getTime(),
+        },
       ]);
       setSuggestions(reply.suggestions ?? QUICK_QUESTIONS);
       maybeSpeak(reply.text);
@@ -419,7 +427,7 @@ export function AiCompanionWidget({
                           {llmLoading
                             ? llmLoadText || "正在載入本機 AI…"
                             : llmReady
-                              ? "本機 LLM · 可自由聊天"
+                              ? `本機 ${getActiveLlmLabel() ?? "LLM"} · 可查資料聊天`
                               : isWebGpuSupported()
                                 ? "智慧陪伴 · 離線規則引擎"
                                 : "本機運行 · 無需網路"}
@@ -478,6 +486,11 @@ export function AiCompanionWidget({
                               : "bg-white text-slate-700 rounded-tl-sm shadow-sm border border-teal-50/70"
                           }`}
                         >
+                          {msg.sender === "ai" && msg.thinking && (
+                            <p className="text-[11px] text-slate-400 mb-1.5 pb-1.5 border-b border-slate-100">
+                              思考：{msg.thinking}
+                            </p>
+                          )}
                           {msg.text}
                         </div>
                         <p

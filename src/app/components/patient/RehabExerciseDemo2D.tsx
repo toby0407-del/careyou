@@ -11,6 +11,10 @@ interface RehabExerciseDemo2DProps {
   overlay?: "none" | "full";
   /** detection = 藍圖用，只標示偵測部位，不顯示固定角度 */
   mode?: "demo" | "detection";
+  /** 是否顯示圖上角度範圍（說明頁若下方已有目標範圍可關閉） */
+  showAngleRange?: boolean;
+  /** 是否顯示「為訓練重點」提示（說明頁若已有動作名稱可關閉） */
+  showFocusTip?: boolean;
 }
 
 type HighlightZone = "ankle" | "knee" | "shoulder" | "hip" | "wrist" | "core";
@@ -517,6 +521,8 @@ export function RehabExerciseDemo2D({
   compact = false,
   overlay = "full",
   mode = "demo",
+  showAngleRange = true,
+  showFocusTip = true,
 }: RehabExerciseDemo2DProps) {
   const zone = getHighlightZone(exercise);
   const uid = useId().replace(/:/g, "");
@@ -549,7 +555,13 @@ export function RehabExerciseDemo2D({
 
       <div
         className={`absolute inset-0 flex items-center justify-center px-6 ${
-          overlay === "none" ? "py-4" : isDetection ? "pb-14 pt-8" : "pb-20 pt-8"
+          overlay === "none"
+            ? "py-4"
+            : isDetection
+              ? "pb-14 pt-8"
+              : showAngleRange || showFocusTip
+                ? "pb-20 pt-8"
+                : "pb-8 pt-8"
         }`}
       >
         <div className={overlay === "none" ? "scale-[0.88] -translate-y-2" : ""}>
@@ -562,7 +574,7 @@ export function RehabExerciseDemo2D({
         </div>
       </div>
 
-      {!compact && overlay === "full" && !isDetection && (
+      {!compact && overlay === "full" && !isDetection && showAngleRange && (
         <div className="absolute left-0 right-0 bottom-10 z-10 flex justify-center px-4">
           <div className="flex items-center gap-2 rounded-full bg-black/80 backdrop-blur-sm border border-amber-400/40 px-3 py-1.5 shadow-lg">
             <span className="text-amber-200 text-xs font-bold whitespace-nowrap">{exercise.pose.flexedAngle}°</span>
@@ -572,7 +584,7 @@ export function RehabExerciseDemo2D({
         </div>
       )}
 
-      {!compact && overlay === "full" && (
+      {!compact && overlay === "full" && showFocusTip && (
         <div className="absolute bottom-2 left-3 right-3 z-10 text-center pointer-events-none">
           <p className="text-slate-300 text-[10px] leading-snug">
             <span className="inline-block w-2 h-2 rounded-full bg-yellow-300 align-middle mr-1 shadow-[0_0_6px_#fde047]" />

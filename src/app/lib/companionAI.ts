@@ -8,6 +8,7 @@ import { getUnreadEncouragements } from "../data/encouragements";
 import { resolveExerciseById } from "../data/patientExercisePlans";
 import { allExercises } from "../data/patientExercises";
 import { chatWithLlm, isWebGpuSupported } from "./companionLLM";
+import { buildAppKnowledgeContext } from "./companionAppContext";
 import { CHAT_STORAGE_LIMIT, LLM_HISTORY_TURNS } from "./companionConfig";
 
 export { LLM_HISTORY_TURNS, CHAT_STORAGE_LIMIT } from "./companionConfig";
@@ -50,6 +51,8 @@ export function saveMemory(memory: CompanionMemory) {
 
 export interface AiReply {
   text: string;
+  /** 簡短思考過程（可選顯示） */
+  thinking?: string;
   /** 建議的快速回覆選項 */
   suggestions?: string[];
 }
@@ -497,28 +500,27 @@ export function isSafetyCritical(text: string): boolean {
 
 /** 供本機 LLM 使用的復健情境 system prompt */
 export function buildSystemPrompt(patientName: string): string {
-  const summary = getTodaySummary();
-  const streak = getStreakDays();
-  const appt = getNextAppointment("p1");
   const memory = loadMemory();
-  const unread = getUnreadEncouragements();
+  const appContext = buildAppKnowledgeContext(patientName);
 
   const lines = [
     "你是「小伴」，倍伴練 App 的 AI 復健陪伴助手。",
-    "請用繁體中文，語氣溫暖、簡短、像朋友聊天，2～5 句為宜。",
-    "你可以自由聊天、傾聽心情、聊生活瑣事，也能回答復健相關問題。",
+    "請用繁體中文，語氣溫暖、像朋友聊天。",
+    "你可以：1) 依下方 App 資料回答進度／關卡／島嶼／里程碑／回診；2) 陪聊日常心情與生活。",
+    "回答規則：",
+    "- 查資料時必須以【App 即時資料】為準，不要編造不存在的關卡或數字。",
+    "- 日常聊天可輕鬆回應，不必每次都扯回復健。",
+    "- 正式回答控制在 2～5 句，清楚好讀。",
+    "- 輸出格式固定兩段（思考要短，不要超過 1 句）：",
+    "【思考】用一句話說明你要查什麼或怎麼回",
+    "【回答】給患者看的內容",
+    "- 不要使用 Markdown 標題或條列符號，可用換行。",
     "",
-    `患者：${patientName}`,
-    `今日完成：${summary.completed}/${summary.total} 項，連續訓練 ${streak} 天`,
-    summary.avgQualityToday != null ? `今日平均動作品質：${summary.avgQualityToday}` : "",
-    summary.nextExercise
-      ? `下一項訓練：${summary.nextExercise.name}（約剩 ${summary.remaining} 項、${summary.estimatedMinutes} 分鐘）`
-      : "今日訓練已全部完成",
-    appt ? `下次回診：${formatAppointmentLong(appt.datetime)}，${appt.department}` : "目前無排定回診",
+    appContext,
+    "",
     memory.lastPainReport
       ? `曾回報不適（${memory.lastPainReport.date}）：${memory.lastPainReport.note}`
       : "",
-    unread[0] ? `家人打氣：${unread[0].from} 說「${unread[0].message}」` : "",
     memory.recentTopics?.length
       ? `最近聊過的話題：${memory.recentTopics.slice(0, 8).join("、")}`
       : "",
@@ -537,7 +539,6 @@ export function buildSystemPrompt(patientName: string): string {
     "安全規則：",
     "- 若患者描述疼痛、頭暈、胸悶等，請溫柔建議休息並聯絡家人或醫護，不可診斷或開藥。",
     "- 不施壓、不批評；鼓勵小步前進。",
-    "- 不要使用 Markdown 標題或條列符號，可用換行。",
   ];
 
   return lines.filter(Boolean).join("\n");
@@ -566,18 +567,19 @@ export async function replyToAsync(
 
   try {
     if (isWebGpuSupported()) {
-      const llmText = await chatWithLlm(
+      const llmResult = await chatWithLlm(
         buildSystemPrompt(patientName),
         history,
         text,
         onLlmProgress
       );
-      if (llmText) {
+      if (llmResult) {
         rememberTopic("llm-chat");
         rememberUserNote(text);
-        rememberDialogue(text, llmText);
+        rememberDialogue(text, llmResult.text);
         return {
-          text: llmText,
+          text: llmResult.text,
+          thinking: llmResult.thinking,
           suggestions: contextualSuggestions(),
         };
       }

@@ -10,7 +10,7 @@ import { ChevronLeft, ChevronRight, Lock, Play, RotateCcw, Star, Clock } from "l
 import confetti from "canvas-confetti";
 import { categories, getLevelStatus } from "../../data/patientExercises";
 import { useLiveExercises } from "../../hooks/useLiveProgress";
-import { islandArtForIndex } from "../../data/islandArt";
+import { islandArtForIndex, islandDefForIndex } from "../../data/islandArt";
 import {
   createIslandCarousel,
   type CarouselHandle,
@@ -131,6 +131,7 @@ export function IslandCarousel3D() {
   const exercise = liveExercises[Math.min(activeIndex, liveExercises.length - 1)];
   const status = statuses[Math.min(activeIndex, statuses.length - 1)];
   const category = exercise ? categoryOf(exercise.id) : categories[0];
+  const island = islandDefForIndex(Math.min(activeIndex, liveExercises.length - 1));
 
   // ── WebGL 退回模式：簡易清單（保留全部功能） ──
   if (webglFailed) {
@@ -155,7 +156,7 @@ export function IslandCarousel3D() {
                 <Play className="w-5 h-5 text-teal-500 flex-shrink-0" />
               )}
               <span className="flex-1 min-w-0 truncate" style={{ fontWeight: 700 }}>
-                第 {ex.level} 關．{ex.name}
+                {islandDefForIndex(i).name} · 第 {ex.level} 關．{ex.name}
               </span>
               <span className="text-sm text-slate-400">{ex.setsReps}</span>
             </button>
@@ -210,11 +211,20 @@ export function IslandCarousel3D() {
                     >
                       {category.label}
                     </span>
-                    <h2 className="text-slate-800 text-base leading-tight map-text-title truncate" style={{ fontWeight: 800 }}>
-                      第 {exercise.level} 關．{exercise.name}
-                    </h2>
+                    <span
+                      className="text-xs px-2 py-0.5 rounded-full bg-teal-50 text-teal-600 border border-teal-100 whitespace-nowrap"
+                      style={{ fontWeight: 700 }}
+                    >
+                      {island.name}
+                    </span>
                   </div>
+                  <h2 className="text-slate-800 text-base leading-tight map-text-title truncate mt-1" style={{ fontWeight: 800 }}>
+                    第 {exercise.level} 關．{exercise.name}
+                  </h2>
                   <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 map-text-xs flex-wrap">
+                    <span className="text-teal-600/80" style={{ fontWeight: 600 }}>
+                      {island.sublabel}
+                    </span>
                     <span style={{ fontWeight: 600 }}>{exercise.setsReps}</span>
                     <span className="inline-flex items-center gap-1">
                       <Clock className="w-3.5 h-3.5" />
@@ -304,7 +314,7 @@ export function IslandCarousel3D() {
               <button
                 key={ex.id}
                 type="button"
-                aria-label={`前往 ${ex.name}`}
+                aria-label={`前往 ${islandDefForIndex(idx).name}`}
                 aria-current={idx === activeIndex}
                 onClick={() => handleRef.current?.goTo(idx)}
                 className="w-2.5 h-2.5 rounded-full transition-all"

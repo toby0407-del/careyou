@@ -214,19 +214,35 @@
   display: none;
 }
 
-/* 訓練準備彈窗 */
+/* 訓練準備彈窗 — 字級層級：標題 > 角度 > 數值 > 標籤（整體約 1.2×） */
+.patient-large-text .briefing-title {
+  font-size: calc(24px * var(--pt-ui-scale)) !important;
+  line-height: 1.25 !important;
+}
+
+.patient-large-text .briefing-angle-value {
+  font-size: calc(19px * var(--pt-ui-scale)) !important;
+  line-height: 1.15 !important;
+}
+
+.patient-large-text .briefing-angle-label {
+  font-size: calc(13px * var(--pt-ui-scale)) !important;
+  line-height: 1.2 !important;
+}
+
 .patient-large-text .patient-briefing-stats .briefing-stat-label {
-  font-size: calc(15px * var(--pt-scale)) !important;
+  font-size: calc(13px * var(--pt-ui-scale)) !important;
   line-height: 1.2 !important;
 }
 
 .patient-large-text .patient-briefing-stats .briefing-stat-value {
-  font-size: calc(20px * var(--pt-scale)) !important;
-  line-height: 1.15 !important;
+  font-size: calc(18px * var(--pt-ui-scale)) !important;
+  line-height: 1.2 !important;
   white-space: nowrap;
 }
 
-.patient-large-text .briefing-angle-value {
-  font-size: calc(22px * var(--pt-scale)) !important;
-  line-height: 1.1 !important;
+.patient-large-text .briefing-btn,
+.patient-large-text .briefing-btn-primary {
+  font-size: calc(17px * var(--pt-ui-scale)) !important;
+  line-height: 1.2 !important;
 }
