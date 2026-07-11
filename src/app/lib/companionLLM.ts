@@ -57,12 +57,16 @@ export async function ensureCompanionLlm(
       for (const modelId of MODEL_CANDIDATES) {
         try {
           onProgress?.({
-            text: `正在載入 ${modelId.includes("3B") ? "Qwen2.5-3B" : modelId.includes("1.5B") ? "Qwen2.5-1.5B" : "備用模型"}…`,
+            text: "正在準備本機 AI…",
             progress: 0,
           });
           const instance = await CreateMLCEngine(modelId, {
             initProgressCallback: (report) => {
-              onProgress?.({ text: report.text, progress: report.progress });
+              const pct = Math.round((report.progress || 0) * 100);
+              onProgress?.({
+                text: pct > 0 ? `正在載入本機 AI… ${pct}%` : "正在載入本機 AI…",
+                progress: report.progress,
+              });
             },
           });
           engine = instance;

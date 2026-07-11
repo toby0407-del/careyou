@@ -1,0 +1,15 @@
+# Medication photos — attribution
+
+Images sourced from Wikimedia Commons for demo / educational use.
+Do not redistribute commercially without checking each license.
+
+| Local file | Commons file | License | Notes |
+|---|---|---|---|
+| celecoxib.jpg | [Celebrex_(39491002475).jpg](https://commons.wikimedia.org/wiki/File:Celebrex_(39491002475).jpg) | CC BY 2.0 | Celebrex packaging (西樂葆／塞來昔布) |
+| acetaminophen.jpg | [Panadol_500_mg.jpg](https://commons.wikimedia.org/wiki/File:Panadol_500_mg.jpg) | CC BY-SA 4.0 | Panadol 500 mg (普拿疼／乙醯胺酚) |
+| pantoprazole.jpg | [Pantoprazole_20mg.jpg](https://commons.wikimedia.org/wiki/File:Pantoprazole_20mg.jpg) | Public domain (NIH/NLM) | Pantoprazole tablet (潘妥拉唑) |
+| rivaroxaban.jpg | [Rivaroxaban_(Xarelto®)_tablets.jpg](https://commons.wikimedia.org/wiki/File:Rivaroxaban_(Xarelto%C2%AE)_tablets.jpg) | CC BY-SA 4.0 | Xarelto tablets (拜瑞妥／利伐沙班) |
+| calcium.jpg | [Calgen_d_contents.jpg](https://commons.wikimedia.org/wiki/File:Calgen_d_contents.jpg) | CC BY-SA 4.0 | Calcium + Vit D supplement (示意鈣片) |
+| melatonin.jpg | [Walgreens_Melatonin-2010-20-07.jpg](https://commons.wikimedia.org/wiki/File:Walgreens_Melatonin-2010-20-07.jpg) | CC BY 2.0 | Melatonin bottle (褪黑激素) |
+
+Appearance may differ by country / manufacturer; for patient ID use the actual dispensed pack.

@@ -18,7 +18,6 @@ import {
 import { LLM_HISTORY_TURNS, CHAT_STORAGE_LIMIT } from "../../lib/companionConfig";
 import {
   ensureCompanionLlm,
-  getActiveLlmLabel,
   isCompanionLlmReady,
   isWebGpuSupported,
 } from "../../lib/companionLLM";
@@ -427,7 +426,7 @@ export function AiCompanionWidget({
                           {llmLoading
                             ? llmLoadText || "正在載入本機 AI…"
                             : llmReady
-                              ? `本機 ${getActiveLlmLabel() ?? "LLM"} · 可查資料聊天`
+                              ? "本機 AI · 可查資料聊天"
                               : isWebGpuSupported()
                                 ? "智慧陪伴 · 離線規則引擎"
                                 : "本機運行 · 無需網路"}

@@ -12,6 +12,7 @@ import {
   BarChart3,
   Trophy,
   Images,
+  Pill,
   Heart,
   X,
 } from "lucide-react";
@@ -26,9 +27,11 @@ import {
   DialogTitle,
 } from "../ui/dialog";
 import { DEFAULT_PATIENT_ID, getPatientProfile } from "../../data/patientProfiles";
+import { getTodayMedProgress, subscribeMedications } from "../../data/medications";
 import { IslandCarousel3D } from "./IslandCarousel3D";
 import { PatientResults } from "./PatientResults";
 import { PatientMilestones } from "./PatientMilestones";
+import { MedicationReminders } from "./MedicationReminders";
 import { TimeGallery } from "../shared/TimeGallery";
 import { AiCompanionWidget } from "./AiCompanionWidget";
 import { useLiveStreak, useTodaySummary } from "../../hooks/useLiveProgress";
@@ -39,10 +42,11 @@ import {
   type Encouragement,
 } from "../../data/encouragements";
 
-type Tab = "tasks" | "results" | "milestones" | "gallery";
+type Tab = "tasks" | "meds" | "results" | "milestones" | "gallery";
 
 const tabs: { id: Tab; label: string; icon: typeof Dumbbell }[] = [
   { id: "tasks", label: "復健", icon: Dumbbell },
+  { id: "meds", label: "用藥", icon: Pill },
   { id: "results", label: "結果", icon: BarChart3 },
   { id: "milestones", label: "里程碑", icon: Trophy },
   { id: "gallery", label: "迴廊", icon: Images },
@@ -120,12 +124,15 @@ export function PatientHome() {
   const [activeTab, setActiveTab] = useState<Tab>("tasks");
   const [profileOpen, setProfileOpen] = useState(false);
   const [streakInfoOpen, setStreakInfoOpen] = useState(false);
+  const [medProgress, setMedProgress] = useState(() => getTodayMedProgress(DEFAULT_PATIENT_ID));
   const patientProfile = getPatientProfile(DEFAULT_PATIENT_ID)!;
   const summary = useTodaySummary();
   const streakDays = useLiveStreak();
   const { total: totalExercises, completed: completedExercises, progressPct } = summary;
   const now = useMemo(() => new Date(), []);
   const greeting = now.getHours() < 11 ? "早安" : now.getHours() < 18 ? "午安" : "晚安";
+
+  useEffect(() => subscribeMedications(() => setMedProgress(getTodayMedProgress(DEFAULT_PATIENT_ID))), []);
 
   const personalLine =
     summary.completed >= summary.total
@@ -170,7 +177,19 @@ export function PatientHome() {
                     </span>
                   </>
                 )}
-                {activeTab !== "gallery" && activeTab !== "milestones" && activeTab !== "tasks" && (
+                {activeTab === "meds" && (
+                  <span
+                    className="flex items-center gap-1 bg-teal-50 text-teal-700 text-xs px-2.5 py-1 rounded-full whitespace-nowrap border border-teal-100"
+                    style={{ fontWeight: 600 }}
+                  >
+                    <Pill className="w-3.5 h-3.5" />
+                    用藥 {medProgress.taken}/{medProgress.total}
+                  </span>
+                )}
+                {activeTab !== "gallery" &&
+                  activeTab !== "milestones" &&
+                  activeTab !== "tasks" &&
+                  activeTab !== "meds" && (
                   <>
                     <span
                       className="flex items-center gap-1.5 bg-emerald-50/60 text-emerald-800 text-xs px-3 py-1.5 rounded-full whitespace-nowrap border border-emerald-50"
@@ -255,6 +274,7 @@ export function PatientHome() {
           className="h-full"
         >
           {activeTab === "tasks" && <IslandCarousel3D />}
+          {activeTab === "meds" && <MedicationReminders />}
           {activeTab === "results" && <PatientResults />}
           {activeTab === "milestones" && <PatientMilestones />}
           {activeTab === "gallery" && (
@@ -269,7 +289,7 @@ export function PatientHome() {
         role="tablist"
         aria-label="患者端主選單"
       >
-        <div className="grid grid-cols-4 rehab-tab-bar">
+        <div className="grid grid-cols-5 rehab-tab-bar">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
