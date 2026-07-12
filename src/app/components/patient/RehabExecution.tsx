@@ -33,12 +33,13 @@ import {
 import { usePoseDetection } from "../../hooks/usePoseDetection";
 import { RehabDemoBriefing } from "./RehabDemoBriefing";
 import { RehabReadyOverlays, RehabReadyPanel } from "./RehabReadyGate";
+import { LivePoseCanvas } from "./LivePoseCanvas";
 import { JointAngleGauge } from "./JointAngleGauge";
 import {
   getJointAngle,
   createRepTracker,
   updateRepTracker,
-  drawPoseSkeleton,
+
   createHandRaiseTracker,
   updateHandRaiseTracker,
   HAND_RAISE_HOLD_MS,
@@ -88,6 +89,7 @@ export function RehabExecution() {
   const [feedback, setFeedback] = useState("請面向鏡頭，準備開始動作");
   const [isStandard, setIsStandard] = useState(false);
   const [showSkeleton, setShowSkeleton] = useState(true);
+
   const [restSuggested, setRestSuggested] = useState(false);
   const [sessionResult, setSessionResult] = useState<{
     stars: 1 | 2 | 3;
@@ -113,8 +115,7 @@ export function RehabExecution() {
   const restSuggestedRef = useRef(false);
   const lastInvalidSpeakRef = useRef(0);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const lastKeypointsRef = useRef<import("@tensorflow-models/pose-detection").Keypoint[]>([]);
+
 
   useEffect(() => {
     isPausedRef.current = isPaused;
@@ -126,6 +127,30 @@ export function RehabExecution() {
   const speakIfOn = useCallback((text: string, interrupt = false) => {
     if (voiceEnabledRef.current) speak(text, { interrupt });
   }, []);
+  const beginTraining = useCallback(() => {
+    handRaiseRef.current = createHandRaiseTracker();
+    repTrackerRef.current = createRepTracker();
+    lastValidCountRef.current = 0;
+    lastInvalidCountRef.current = 0;
+    totalValidRef.current = 0;
+    totalInvalidRef.current = 0;
+    repTimesRef.current = [];
+    currentRepRef.current = 0;
+    restSuggestedRef.current = false;
+    setHandRaiseProgress(0);
+    setReadySide(null);
+    setCurrentSet(1);
+    setCurrentRep(0);
+    setValidReps(0);
+    setElapsedSeconds(0);
+    setShowComplete(false);
+    setSessionResult(null);
+    setPhase("training");
+    speakIfOn(
+      `開始訓練！${exercise.name}，共 ${exercise.sets} 組、每組 ${exercise.repsPerSet} 次。${exercise.instruction}`,
+      true
+    );
+  }, [exercise, speakIfOn]);
 
   // 離開頁面時停止語音
   useEffect(() => () => stopSpeaking(), []);
@@ -170,7 +195,7 @@ export function RehabExecution() {
 
   const onPose = useCallback(
     (keypoints: import("@tensorflow-models/pose-detection").Keypoint[]) => {
-      lastKeypointsRef.current = keypoints;
+
       const now = performance.now();
       const deltaMs = now - lastPoseTimeRef.current;
       lastPoseTimeRef.current = now;
@@ -185,22 +210,7 @@ export function RehabExecution() {
         setReadySide(tracker.side);
 
         if (tracker.holdingMs >= HAND_RAISE_HOLD_MS) {
-          handRaiseRef.current = createHandRaiseTracker();
-          repTrackerRef.current = createRepTracker();
-          lastValidCountRef.current = 0;
-          lastInvalidCountRef.current = 0;
-          totalValidRef.current = 0;
-          totalInvalidRef.current = 0;
-          repTimesRef.current = [];
-          currentRepRef.current = 0;
-          restSuggestedRef.current = false;
-          setHandRaiseProgress(0);
-          setReadySide(null);
-          setPhase("training");
-          speakIfOn(
-            `開始訓練！${exercise.name}，共 ${exercise.sets} 組、每組 ${exercise.repsPerSet} 次。${exercise.instruction}`,
-            true
-          );
+          beginTraining();
         }
         return;
       }
@@ -261,56 +271,17 @@ export function RehabExecution() {
         checkFatigue();
       }
     },
-    [exercise, speakIfOn, checkFatigue]
+    [exercise, speakIfOn, checkFatigue, beginTraining]
   );
 
   const poseDetectionEnabled = !showComplete && (phase === "ready" || phase === "training");
 
-  const { cameraState, errorMessage, fps, engine, keypointTotal, activeKeypoints, videoLive, retry } =
+  const { cameraState, keypoints, errorMessage, fps, engine, keypointTotal, activeKeypoints, videoLive, retry } =
     usePoseDetection({
     enabled: poseDetectionEnabled,
     videoRef,
     onPose,
   });
-
-  // 獨立渲染迴圈 — 確保骨架即時疊加在鏡頭畫面上
-  useEffect(() => {
-    if (!showSkeleton || cameraState !== "ready" || phase === "demo") return;
-
-    let raf = 0;
-    const render = () => {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      if (video && canvas && video.videoWidth > 0 && video.videoHeight > 0) {
-        const vw = video.videoWidth;
-        const vh = video.videoHeight;
-        if (canvas.width !== vw || canvas.height !== vh) {
-          canvas.width = vw;
-          canvas.height = vh;
-        }
-        const ctx = canvas.getContext("2d");
-        if (ctx) {
-          if (lastKeypointsRef.current.length > 0) {
-            drawPoseSkeleton(ctx, lastKeypointsRef.current, vw, vh, { mirror: false });
-          } else {
-            ctx.clearRect(0, 0, vw, vh);
-          }
-        }
-      }
-      raf = requestAnimationFrame(render);
-    };
-
-    raf = requestAnimationFrame(render);
-    return () => cancelAnimationFrame(raf);
-  }, [showSkeleton, cameraState, phase]);
-
-  // 關閉骨架時清除畫布
-  useEffect(() => {
-    if (showSkeleton) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }, [showSkeleton]);
 
   // Timer
   useEffect(() => {
@@ -508,9 +479,11 @@ export function RehabExecution() {
             muted
             autoPlay
           />
-          <canvas
-            ref={canvasRef}
-            className="absolute inset-0 z-30 w-full h-full object-cover pointer-events-none"
+          <LivePoseCanvas
+            videoRef={videoRef}
+            keypoints={keypoints}
+            visible={showSkeleton && cameraState === "ready"}
+            highlightJoint={exercise.pose.joint.replace(/^(left|right)/, "").toLowerCase()}
           />
 
           {isLoading && (
@@ -529,7 +502,7 @@ export function RehabExecution() {
                     : "正在請求攝影機權限"}
                 </h2>
                 <p className="text-slate-400 text-sm max-w-sm">
-                  {getAppDisplayName()} · BlazePose 33 關節點 / MoveNet 備援
+                  {getAppDisplayName()} · BlazePose 33 關節點 / MoveNet 安全備援
                 </p>
               </div>
             </div>
@@ -664,6 +637,7 @@ export function RehabExecution() {
             activeKeypoints={activeKeypoints}
             keypointTotal={keypointTotal}
             onBack={() => setPhase("demo")}
+            onStart={beginTraining}
           />
         )}
 

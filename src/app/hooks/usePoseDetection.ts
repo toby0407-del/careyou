@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import * as tf from "@tensorflow/tfjs";
 import "@tensorflow/tfjs-backend-webgl";
 import * as poseDetection from "@tensorflow-models/pose-detection";
 import type { Keypoint, PoseDetector } from "@tensorflow-models/pose-detection";
-import { prepareKeypointsForVideo } from "../utils/poseAnalysis";
+
 
 export type CameraState =
   | "idle"
@@ -13,7 +13,40 @@ export type CameraState =
   | "denied"
   | "error";
 
-export type PoseEngine = "movenet" | "blazepose";
+export type PoseEngine = "blazepose" | "movenet";
+
+const BLAZEPOSE_NAMES = [
+  "nose",
+  "left_eye_inner", "left_eye", "left_eye_outer",
+  "right_eye_inner", "right_eye", "right_eye_outer",
+  "left_ear", "right_ear", "mouth_left", "mouth_right",
+  "left_shoulder", "right_shoulder", "left_elbow", "right_elbow",
+  "left_wrist", "right_wrist", "left_pinky", "right_pinky",
+  "left_index", "right_index", "left_thumb", "right_thumb",
+  "left_hip", "right_hip", "left_knee", "right_knee",
+  "left_ankle", "right_ankle", "left_heel", "right_heel",
+  "left_foot_index", "right_foot_index",
+] as const;
+
+const MOVENET_NAMES = [
+  "nose",
+  "left_eye",
+  "right_eye",
+  "left_ear",
+  "right_ear",
+  "left_shoulder",
+  "right_shoulder",
+  "left_elbow",
+  "right_elbow",
+  "left_wrist",
+  "right_wrist",
+  "left_hip",
+  "right_hip",
+  "left_knee",
+  "right_knee",
+  "left_ankle",
+  "right_ankle",
+] as const;
 
 interface UsePoseDetectionOptions {
   enabled?: boolean;
@@ -37,29 +70,36 @@ async function initTfBackend(): Promise<void> {
   }
 }
 
-/** BlazePose lite — 33 keypoints (ML Kit 同源); MoveNet fallback — 17 points */
-async function createDetector(): Promise<{ detector: PoseDetector; engine: PoseEngine; keypointTotal: number }> {
+async function createMoveNetDetector(): Promise<PoseDetector> {
   await initTfBackend();
+  return poseDetection.createDetector(
+    poseDetection.SupportedModels.MoveNet,
+    {
+      modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+      enableSmoothing: true,
+    }
+  );
+}
 
+/** 優先使用 MediaPipe runtime 的 BlazePose Full；模型無法載入時才使用 MoveNet。 */
+async function createDetector(): Promise<{ detector: PoseDetector; engine: PoseEngine; keypointTotal: number }> {
   try {
     const detector = await poseDetection.createDetector(
       poseDetection.SupportedModels.BlazePose,
-      { runtime: "tfjs", modelType: "lite", enableSmoothing: true }
-    );
-    return { detector, engine: "blazepose", keypointTotal: 33 };
-  } catch (blazeErr) {
-    console.warn("BlazePose failed, falling back to MoveNet:", blazeErr);
-    const detector = await poseDetection.createDetector(
-      poseDetection.SupportedModels.MoveNet,
       {
-        modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING,
+        runtime: "mediapipe",
+        solutionPath: "/mediapipe/pose",
+        modelType: "full",
         enableSmoothing: true,
       }
     );
+    return { detector, engine: "blazepose", keypointTotal: 33 };
+  } catch (error) {
+    console.warn("BlazePose 初始化失敗，改用 MoveNet：", error);
+    const detector = await createMoveNetDetector();
     return { detector, engine: "movenet", keypointTotal: 17 };
   }
 }
-
 function waitForVideoReady(video: HTMLVideoElement): Promise<void> {
   return new Promise((resolve, reject) => {
     if (video.readyState >= 2 && video.videoWidth > 0) {
@@ -91,6 +131,10 @@ export function usePoseDetection({
   const rafRef = useRef<number>(0);
   const runningRef = useRef(false);
   const busyRef = useRef(false);
+  const consecutiveErrorsRef = useRef(0);
+  const consecutiveEmptyRef = useRef(0);
+  const recoveringRef = useRef(false);
+  const engineRef = useRef<PoseEngine | null>(null);
   const onPoseRef = useRef(onPose);
 
   const [cameraState, setCameraState] = useState<CameraState>("idle");
@@ -107,6 +151,10 @@ export function usePoseDetection({
   const stop = useCallback(() => {
     runningRef.current = false;
     busyRef.current = false;
+    consecutiveErrorsRef.current = 0;
+    consecutiveEmptyRef.current = 0;
+    recoveringRef.current = false;
+    engineRef.current = null;
     cancelAnimationFrame(rafRef.current);
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
@@ -152,7 +200,7 @@ export function usePoseDetection({
       if (!video) throw new Error("攝影機元件尚未就緒");
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user", width: { ideal: 640 }, height: { ideal: 480 } },
+        video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false,
       });
       streamRef.current = stream;
@@ -161,6 +209,7 @@ export function usePoseDetection({
       setCameraState("loading-model");
       const { detector, engine: eng, keypointTotal: total } = await createDetector();
       detectorRef.current = detector;
+      engineRef.current = eng;
       setEngine(eng);
       setKeypointTotal(total);
       setCameraState("ready");
@@ -179,13 +228,65 @@ export function usePoseDetection({
 
         busyRef.current = true;
         detectorRef.current
-          .estimatePoses(v, { flipHorizontal: true, maxPoses: 1 })
-          .then((poses) => {
+          // 保留原始影片座標；畫面鏡像只交給 video/canvas 的 CSS 處理，
+          // 避免模型座標與骨架疊圖各自鏡像而失去對齊。
+          .estimatePoses(v, { flipHorizontal: false, maxPoses: 1 })
+          .then(async (poses) => {
             const raw = poses[0]?.keypoints ?? [];
-            const kp = prepareKeypointsForVideo(raw, v.videoWidth, v.videoHeight);
+            const currentEngine = engineRef.current ?? eng;
+            const pointNames = currentEngine === "blazepose" ? BLAZEPOSE_NAMES : MOVENET_NAMES;
+            const kp = raw.map((point, index) => ({
+              ...point,
+              name: point.name ?? pointNames[index] ?? `point_${index}`,
+            }));
+            const visibleCount = kp.filter((k) => (k.score ?? 0) >= 0.25).length;
             setKeypoints(kp);
-            setActiveKeypoints(kp.filter((k) => (k.score ?? 0) >= 0.15).length);
+            setActiveKeypoints(visibleCount);
             onPoseRef.current?.(kp);
+            consecutiveErrorsRef.current = 0;
+
+            if (currentEngine === "blazepose" && visibleCount < 5) {
+              consecutiveEmptyRef.current += 1;
+            } else {
+              consecutiveEmptyRef.current = 0;
+            }
+
+            // BlazePose 有時會成功初始化，卻持續回傳空陣列。此時用 MoveNet
+            // 做一次健康檢查；只有 MoveNet 確實看到人體時才切換，避免單純
+            // 因為使用者暫時離開畫面而誤判模型故障。
+            if (
+              currentEngine === "blazepose" &&
+              consecutiveEmptyRef.current >= 90 &&
+              !recoveringRef.current
+            ) {
+              recoveringRef.current = true;
+              try {
+                const fallback = await createMoveNetDetector();
+                const fallbackPoses = await fallback.estimatePoses(v, {
+                  flipHorizontal: false,
+                  maxPoses: 1,
+                });
+                const fallbackPoints = fallbackPoses[0]?.keypoints ?? [];
+                const fallbackVisible = fallbackPoints.filter((k) => (k.score ?? 0) >= 0.25).length;
+
+                if (fallbackVisible >= 5 && runningRef.current) {
+                  const previous = detectorRef.current;
+                  detectorRef.current = fallback;
+                  engineRef.current = "movenet";
+                  setEngine("movenet");
+                  setKeypointTotal(17);
+                  setErrorMessage("BlazePose 未回傳人體，已自動切換為 MoveNet 備援");
+                  previous?.dispose();
+                } else {
+                  fallback.dispose();
+                }
+              } catch (fallbackError) {
+                console.warn("MoveNet 健康檢查失敗：", fallbackError);
+              } finally {
+                consecutiveEmptyRef.current = 0;
+                recoveringRef.current = false;
+              }
+            }
             frames++;
             const now = performance.now();
             if (now - lastT >= 1000) {
@@ -195,7 +296,13 @@ export function usePoseDetection({
             }
           })
           .catch((err) => {
+            consecutiveErrorsRef.current += 1;
             console.warn("pose estimatePoses failed:", err);
+            if (consecutiveErrorsRef.current >= 30) {
+              runningRef.current = false;
+              setCameraState("error");
+              setErrorMessage("姿勢模型連續偵測失敗，請按重試");
+            }
           })
           .finally(() => { busyRef.current = false; });
       };
@@ -243,3 +350,4 @@ export function usePoseDetection({
     stop,
   };
 }
+

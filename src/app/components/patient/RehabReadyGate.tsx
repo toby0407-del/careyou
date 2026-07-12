@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { ArrowLeft, Camera, Hand, Loader2, Activity } from "lucide-react";
+import { ArrowLeft, Camera, Hand, Loader2, Activity, Play } from "lucide-react";
 import type { Exercise } from "../../data/exerciseTypes";
 import type { CameraState, PoseEngine } from "../../hooks/usePoseDetection";
 import { HAND_RAISE_HOLD_MS } from "../../utils/poseAnalysis";
@@ -17,6 +17,7 @@ interface RehabReadyGateProps {
   showSkeleton: boolean;
   onToggleSkeleton: (value: boolean) => void;
   onBack: () => void;
+  onStart: () => void;
 }
 
 export function RehabReadyOverlays({
@@ -57,8 +58,9 @@ export function RehabReadyOverlays({
           <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm border border-emerald-300/40 rounded-full px-3 py-1.5">
             <Activity className="w-3.5 h-3.5 text-emerald-200" />
             <span className="text-emerald-200 text-xs font-semibold">
-              {engine === "blazepose" ? "33" : "17"} 測點 · {activeKeypoints} 偵測中 · {fps} FPS
-              {activeKeypoints === 0 && " · 請站入畫面"}
+              {activeKeypoints >= 5
+                ? `人體已辨識 · ${activeKeypoints}/${engine === "blazepose" ? "33" : "17"} 點 · ${fps} FPS`
+                : "請站入畫面"}
             </span>
             <div className="w-2 h-2 bg-emerald-200 rounded-full animate-pulse" />
           </div>
@@ -85,6 +87,7 @@ export function RehabReadyPanel({
   activeKeypoints,
   keypointTotal,
   onBack,
+  onStart,
 }: Pick<
   RehabReadyGateProps,
   | "exercise"
@@ -94,6 +97,7 @@ export function RehabReadyPanel({
   | "activeKeypoints"
   | "keypointTotal"
   | "onBack"
+  | "onStart"
 >) {
   const progressPct = Math.min(100, (handRaiseProgress / HAND_RAISE_HOLD_MS) * 100);
 
@@ -147,11 +151,21 @@ export function RehabReadyPanel({
           </p>
         </div>
 
+        <button
+          type="button"
+          onClick={onStart}
+          disabled={!detectedInFrame}
+          className="min-h-14 w-full rounded-2xl bg-teal-300 text-slate-950 font-bold text-base shadow-lg shadow-teal-300/20 disabled:bg-slate-700 disabled:text-slate-400 disabled:shadow-none"
+        >
+          <Play className="inline-block w-5 h-5 mr-2 -mt-0.5" fill="currentColor" />
+          {detectedInFrame ? "我準備好了，開始訓練" : "請先站入鏡頭畫面"}
+        </button>
+
         <div className="rounded-xl bg-white/5 border border-white/10 p-3 space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-slate-400 text-[10px]">姿勢偵測</p>
             <p className="text-emerald-200 text-[10px] font-semibold">
-              {keypointTotal} 關節點 · {activeKeypoints} 可見
+              {detectedInFrame ? "人體已辨識" : "等待人體辨識"} · {activeKeypoints}/{keypointTotal} 點
             </p>
           </div>
           <p className="text-white text-sm font-semibold">{exercise.setsReps}</p>
