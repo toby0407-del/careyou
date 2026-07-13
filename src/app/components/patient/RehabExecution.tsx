@@ -39,10 +39,12 @@ import {
   getJointAngle,
   createRepTracker,
   updateRepTracker,
+  prepareKeypointsForVideo,
 
   createHandRaiseTracker,
   updateHandRaiseTracker,
   HAND_RAISE_HOLD_MS,
+  countVisibleKeypoints,
   type RepTracker,
 } from "../../utils/poseAnalysis";
 import { Switch } from "../ui/switch";
@@ -195,16 +197,22 @@ export function RehabExecution() {
 
   const onPose = useCallback(
     (keypoints: import("@tensorflow-models/pose-detection").Keypoint[]) => {
+      const video = videoRef.current;
+      const prepared =
+        video && video.videoWidth > 0
+          ? prepareKeypointsForVideo(keypoints, video.videoWidth, video.videoHeight)
+          : keypoints;
 
       const now = performance.now();
       const deltaMs = now - lastPoseTimeRef.current;
       lastPoseTimeRef.current = now;
 
       if (phaseRef.current === "ready") {
-        const visibleCount = keypoints.filter((k) => (k.score ?? 0) >= 0.15).length;
+        const visibleCount = countVisibleKeypoints(prepared);
         setDetectedInFrame(visibleCount >= 5);
+        setJointAngle(getJointAngle(prepared, exercise.pose.joint));
 
-        const tracker = updateHandRaiseTracker(handRaiseRef.current, keypoints, deltaMs);
+        const tracker = updateHandRaiseTracker(handRaiseRef.current, prepared, deltaMs);
         handRaiseRef.current = tracker;
         setHandRaiseProgress(tracker.holdingMs);
         setReadySide(tracker.side);
@@ -217,7 +225,7 @@ export function RehabExecution() {
 
       if (phaseRef.current !== "training") return;
 
-      const angle = getJointAngle(keypoints, exercise.pose.joint);
+      const angle = getJointAngle(prepared, exercise.pose.joint);
       setJointAngle(angle);
 
       if (isPausedRef.current) return;
@@ -483,6 +491,7 @@ export function RehabExecution() {
             videoRef={videoRef}
             keypoints={keypoints}
             visible={showSkeleton && cameraState === "ready"}
+            personDetected={activeKeypoints >= 5}
             highlightJoint={exercise.pose.joint.replace(/^(left|right)/, "").toLowerCase()}
           />
 

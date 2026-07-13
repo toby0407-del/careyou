@@ -271,6 +271,7 @@ function SlotColumn({
 
   return (
     <section
+      data-med-slot={slot}
       className={`flex flex-col min-h-0 min-w-0 rounded-2xl border overflow-hidden ${
         highlighted
           ? "border-teal-200 bg-gradient-to-b from-teal-50 to-white shadow-md shadow-teal-50/50"
@@ -278,6 +279,7 @@ function SlotColumn({
       }`}
     >
       <header
+        data-companion-anchor={slot === "noon" ? "meds-noon" : undefined}
         className={`flex-shrink-0 flex items-center justify-between gap-1 px-2.5 py-2 border-b ${
           highlighted ? "border-teal-100 bg-teal-50/70" : "border-emerald-50/80 bg-emerald-50/40"
         }`}

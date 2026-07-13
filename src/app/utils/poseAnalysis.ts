@@ -89,6 +89,54 @@ export function getKeypointCount(keypoints: Keypoint[]): number {
   return keypoints.filter((k) => (k.score ?? 0) >= 0.3).length;
 }
 
+export const KEYPOINT_VISIBILITY_MIN = 0.15;
+
+export function countVisibleKeypoints(keypoints: Keypoint[], minScore = KEYPOINT_VISIBILITY_MIN): number {
+  return keypoints.filter((k) => (k.score ?? 0) >= minScore).length;
+}
+
+export interface PersonScreenEllipse {
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+}
+
+/** 依螢幕座標關節點計算人體外框橢圓（用於偵測光圈） */
+export function computePersonScreenEllipse(
+  points: Array<{ x: number; y: number }>,
+  paddingRatio = 0.035
+): PersonScreenEllipse | null {
+  if (points.length < 5) return null;
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p.y);
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const minY = Math.min(...ys);
+  const maxY = Math.max(...ys);
+  const w = Math.max(1, maxX - minX);
+  const h = Math.max(1, maxY - minY);
+  return {
+    cx: (minX + maxX) / 2,
+    cy: (minY + maxY) / 2,
+    rx: w / 2 + w * paddingRatio,
+    ry: h / 2 + h * paddingRatio,
+  };
+}
+
+/** 人體光圈線寬（依較短邊縮放，刻意偏細） */
+export function personHaloMetrics(cssWidth: number, cssHeight: number) {
+  const vmin = Math.min(cssWidth, cssHeight);
+  return {
+    stroke: Math.max(0.75, vmin * 0.001),
+    glowBlur: Math.max(1, vmin * 0.0012),
+    jointRadius: Math.max(3, vmin * 0.004),
+    jointHighlight: Math.max(4.5, vmin * 0.0055),
+    lineWidth: Math.max(1.5, vmin * 0.0022),
+    lineHighlight: Math.max(2.5, vmin * 0.0032),
+  };
+}
+
 export function angleAtJoint(a: Point2D, b: Point2D, c: Point2D): number {
   const ab = { x: a.x - b.x, y: a.y - b.y };
   const cb = { x: c.x - b.x, y: c.y - b.y };
@@ -101,14 +149,52 @@ export function angleAtJoint(a: Point2D, b: Point2D, c: Point2D): number {
   return Number.isFinite(angle) ? angle : NaN;
 }
 
-export function getJointAngle(keypoints: Keypoint[], joint: Exercise["pose"]["joint"]): number | null {
-  const [aName, bName, cName] = JOINT_TRIPLETS[joint];
-  const a = getKeypoint(keypoints, aName);
-  const b = getKeypoint(keypoints, bName);
-  const c = getKeypoint(keypoints, cName);
+const JOINT_OPPOSITE: Partial<Record<Exercise["pose"]["joint"], Exercise["pose"]["joint"]>> = {
+  leftKnee: "rightKnee",
+  rightKnee: "leftKnee",
+  leftShoulder: "rightShoulder",
+  rightShoulder: "leftShoulder",
+  leftHip: "rightHip",
+  rightHip: "leftHip",
+};
+
+const ANGLE_KEYPOINT_MIN_SCORE = 0.15;
+
+function tripletVisibility(keypoints: Keypoint[], triplet: [string, string, string]): number {
+  return triplet.reduce((sum, name) => {
+    const kp = keypoints.find((k) => k.name === name);
+    return sum + (kp?.score ?? 0);
+  }, 0);
+}
+
+function angleFromTriplet(
+  keypoints: Keypoint[],
+  triplet: [string, string, string]
+): number | null {
+  const [aName, bName, cName] = triplet;
+  const a = getKeypoint(keypoints, aName, ANGLE_KEYPOINT_MIN_SCORE);
+  const b = getKeypoint(keypoints, bName, ANGLE_KEYPOINT_MIN_SCORE);
+  const c = getKeypoint(keypoints, cName, ANGLE_KEYPOINT_MIN_SCORE);
   if (!a || !b || !c) return null;
   const angle = Math.round(angleAtJoint(a, b, c));
   return Number.isFinite(angle) ? angle : null;
+}
+
+export function getJointAngle(keypoints: Keypoint[], joint: Exercise["pose"]["joint"]): number | null {
+  const primary = JOINT_TRIPLETS[joint];
+  const oppositeName = JOINT_OPPOSITE[joint];
+  const opposite = oppositeName ? JOINT_TRIPLETS[oppositeName] : null;
+
+  const candidates: [string, string, string][] = opposite ? [primary, opposite] : [primary];
+  candidates.sort(
+    (a, b) => tripletVisibility(keypoints, b) - tripletVisibility(keypoints, a)
+  );
+
+  for (const triplet of candidates) {
+    const angle = angleFromTriplet(keypoints, triplet);
+    if (angle != null) return angle;
+  }
+  return null;
 }
 
 export type RepPhase = "idle" | "flexed" | "extended";
@@ -120,6 +206,8 @@ export interface RepTracker {
   lastAngle: number | null;
   feedback: string;
   isStandard: boolean;
+  /** 本輪是否曾彎曲到目標幅度（計次時看彎曲+伸直，不看伸直當下是否「居中」） */
+  reachedFlexed: boolean;
 }
 
 export function updateRepTracker(
@@ -138,23 +226,26 @@ export function updateRepTracker(
   const { flexedAngle, extendedAngle, tolerance } = exercise.pose;
   const isFlexed = angle <= flexedAngle + tolerance;
   const isExtended = angle >= extendedAngle - tolerance;
-  const midTarget = (flexedAngle + extendedAngle) / 2;
-  const deviation = Math.abs(angle - midTarget);
-  next.isStandard = deviation <= tolerance * 1.5;
+  next.isStandard = isFlexed || isExtended;
 
   if (next.phase === "idle" || next.phase === "extended") {
     if (isFlexed) {
       next.phase = "flexed";
+      next.reachedFlexed = true;
       next.feedback = "很好！現在慢慢伸直";
     } else if (!isExtended) {
-      next.feedback = next.isStandard ? "動作穩定，繼續彎曲" : "請加大彎曲幅度";
+      next.feedback = "請加大彎曲幅度";
     }
   }
 
   if (next.phase === "flexed") {
+    if (isFlexed) next.reachedFlexed = true;
+
     if (isExtended) {
+      const flexOk = next.reachedFlexed;
       next.phase = "extended";
-      if (next.isStandard) {
+      next.reachedFlexed = false;
+      if (flexOk) {
         next.validReps += 1;
         next.feedback = "標準動作！+1 次";
       } else {
@@ -162,12 +253,13 @@ export function updateRepTracker(
         next.feedback = "幅度不足，這次不計入";
       }
     } else {
-      next.feedback = next.isStandard ? "保持彎曲，準備伸直" : "請彎曲至目標角度";
+      next.feedback = next.reachedFlexed ? "保持彎曲，準備伸直" : "請彎曲至目標角度";
     }
   }
 
   if (next.phase === "extended" && isFlexed) {
     next.phase = "flexed";
+    next.reachedFlexed = true;
   }
 
   return next;
@@ -231,6 +323,7 @@ export function createRepTracker(): RepTracker {
     lastAngle: null,
     feedback: "請面向鏡頭，準備開始動作",
     isStandard: false,
+    reachedFlexed: false,
   };
 }
 

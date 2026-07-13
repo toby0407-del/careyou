@@ -216,6 +216,11 @@ export function PatientHome() {
                     )}
                   </>
                 )}
+                <span
+                  data-companion-anchor="patient-header"
+                  className="inline-block w-px h-5 flex-shrink-0 opacity-0 pointer-events-none"
+                  aria-hidden
+                />
               </div>
               {activeTab === "gallery" || activeTab === "milestones" ? (
                 <p className="text-slate-400 text-xs truncate mt-0.5">{personalLine}</p>

@@ -52,22 +52,68 @@ const HINT_RESERVE = 160;
 const DEFAULT_BOTTOM_CLEARANCE = 102;
 /** 頂部至少避開狀態列（無法量測 main 時的後備） */
 const TOP_CLEARANCE = 44;
-/** 對齊主內容區左上（地圖區）的內距 */
-const MAIN_INSET = 12;
+/** 頂部列小伴落點：緊接「0/6 項」右側，垂直落在標題列下緣 */
+const HEADER_ANCHOR_X_GAP = 8;
+const HEADER_ANCHOR_Y_OFFSET = 6;
+const FALLBACK_X_RATIO = 0.34;
+const FALLBACK_Y_RATIO = 0.07;
 
-function measureMainAnchor(): { x: number; y: number } | null {
+function measurePatientHeaderAnchor(): { x: number; y: number } | null {
   if (typeof document === "undefined") return null;
-  const mainEl = document.querySelector(".patient-shell main");
-  if (!mainEl) return null;
-  const rect = mainEl.getBoundingClientRect();
-  return { x: rect.left + MAIN_INSET, y: rect.top + MAIN_INSET };
+  const anchor = document.querySelector('[data-companion-anchor="patient-header"]');
+  const header = document.querySelector(".patient-shell-header");
+  if (!anchor || !header) return null;
+  const anchorRect = anchor.getBoundingClientRect();
+  const headerRect = header.getBoundingClientRect();
+  if (headerRect.width <= 0 || headerRect.height <= 0) return null;
+  return {
+    // 按鈕左緣從狀態列文字右側開始，不蓋住「0/6 項」
+    x: anchorRect.left + HEADER_ANCHOR_X_GAP,
+    // 垂直置中於標題列，略下沉到與內容區交界
+    y: headerRect.top + headerRect.height / 2 - BTN_SIZE / 2 + HEADER_ANCHOR_Y_OFFSET,
+  };
 }
 
-function getDefaultPosition(): { x: number; y: number } {
-  const anchor = measureMainAnchor();
-  if (anchor) return clampPosition(anchor.x, anchor.y);
+function measureMedsCompanionAnchor(): { x: number; y: number } | null {
+  if (typeof document === "undefined") return null;
+  const header = document.querySelector('[data-companion-anchor="meds-noon"]');
+  if (header) {
+    const rect = header.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      return {
+        x: rect.left + rect.width / 2 - BTN_SIZE / 2,
+        y: rect.top + rect.height / 2 - BTN_SIZE / 2,
+      };
+    }
+  }
+  return measureMedSlotAnchor("noon");
+}
+
+function measureMedSlotAnchor(slot: string): { x: number; y: number } | null {
+  if (typeof document === "undefined") return null;
+  const col = document.querySelector(`[data-med-slot="${slot}"]`);
+  if (!col) return null;
+  const rect = col.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  return {
+    x: rect.left + rect.width / 2 - BTN_SIZE / 2,
+    y: rect.top + 6,
+  };
+}
+
+function getDefaultPosition(resetKey?: string): { x: number; y: number } {
+  if (resetKey === "meds") {
+    const noon = measureMedsCompanionAnchor();
+    if (noon) return clampPosition(noon.x, noon.y);
+  }
+
+  const header = measurePatientHeaderAnchor();
+  if (header) return clampPosition(header.x, header.y);
+
   if (typeof window === "undefined") return { x: EDGE_MARGIN, y: TOP_CLEARANCE + 80 };
-  return clampPosition(EDGE_MARGIN, TOP_CLEARANCE + 80);
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  return clampPosition(w * FALLBACK_X_RATIO, TOP_CLEARANCE + h * FALLBACK_Y_RATIO);
 }
 
 function getBottomClearance(): number {
@@ -131,11 +177,11 @@ export function AiCompanionWidget({
   resetKey,
 }: {
   patientName: string;
-  /** 切換分頁時，小伴回到主內容區（地圖）左上角 */
+  /** 切換分頁時，小伴回到該分頁預設落點（復健等：頂部列；用藥：中午欄） */
   resetKey?: string;
 }) {
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState(() => getDefaultPosition());
+  const [pos, setPos] = useState(() => getDefaultPosition(resetKey));
   const [messages, setMessages] = useState<AiMessage[]>(() => loadChat());
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
@@ -147,6 +193,7 @@ export function AiCompanionWidget({
   const [llmReady, setLlmReady] = useState(false);
   const [llmLoading, setLlmLoading] = useState(false);
   const [llmLoadText, setLlmLoadText] = useState("");
+  const openRef = useRef(open);
   const greetedRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -162,19 +209,33 @@ export function AiCompanionWidget({
   });
 
   useEffect(() => {
+    openRef.current = open;
+  }, [open]);
+
+  const closeCompanion = useCallback(() => {
+    stopSpeaking();
+    listeningRef.current = false;
+    setIsListening(false);
+    setListenError(null);
+    setOpen(false);
+  }, []);
+
+  useEffect(() => {
     saveChat(messages);
   }, [messages]);
 
   useEffect(() => {
     const syncPosition = () => {
-      if (resetKey === "tasks") {
-        setPos(getDefaultPosition());
+      if (resetKey) {
+        setPos(getDefaultPosition(resetKey));
       } else {
         setPos((p) => clampPosition(p.x, p.y));
       }
     };
     syncPosition();
-    requestAnimationFrame(syncPosition);
+    requestAnimationFrame(() => {
+      requestAnimationFrame(syncPosition);
+    });
     window.addEventListener("resize", syncPosition);
     return () => window.removeEventListener("resize", syncPosition);
   }, [resetKey]);
@@ -244,7 +305,10 @@ export function AiCompanionWidget({
       setPos((p) => clampPosition(p.x, p.y));
       return;
     }
-    setOpen((v) => !v);
+    setOpen((v) => {
+      if (v) stopSpeaking();
+      return !v;
+    });
   };
 
   const panelAlignEnd = pos.x + BTN_SIZE / 2 > window.innerWidth / 2;
@@ -257,6 +321,7 @@ export function AiCompanionWidget({
 
   const maybeSpeak = useCallback(
     (text: string) => {
+      if (!openRef.current) return;
       if (voiceOn && isSpeechSupported()) {
         speak(text.replace(/[💚💌🎉🥺😌🙈]/gu, ""), { interrupt: true });
       }
@@ -362,11 +427,14 @@ export function AiCompanionWidget({
 
   useEffect(() => {
     if (!open) {
+      stopSpeaking();
       listeningRef.current = false;
       setIsListening(false);
       setListenError(null);
     }
   }, [open]);
+
+  useEffect(() => () => stopSpeaking(), []);
 
   const widget = (
     <>
@@ -386,7 +454,7 @@ export function AiCompanionWidget({
                 type="button"
                 className="absolute inset-0 w-full h-full cursor-default"
                 aria-label="關閉小伴對話"
-                onClick={() => setOpen(false)}
+                onClick={closeCompanion}
               />
             </motion.div>
 
@@ -451,7 +519,7 @@ export function AiCompanionWidget({
                       </button>
                     )}
                     <button
-                      onClick={() => setOpen(false)}
+                      onClick={closeCompanion}
                       className="w-9 h-9 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
                       aria-label="關閉小伴"
                     >
