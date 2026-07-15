@@ -42,7 +42,6 @@ import { ChatWidget } from "../shared/ChatWidget";
 import { NotificationBell } from "../shared/NotificationBell";
 import { PatientProfileDialog } from "../shared/PatientProfileDialog";
 import { PatientAnalyticsPanel } from "../shared/PatientAnalyticsPanel";
-import { DailyRevealStatusCard } from "../shared/DailyRevealStatusCard";
 import { DEFAULT_PATIENT_ID, getPatientProfile } from "../../data/patientProfiles";
 import { getPatientAnalytics, getAnalyticsKpiValue } from "../../data/patientAnalytics";
 import { getLastSessionLabel } from "../../data/progressStore";
@@ -129,7 +128,7 @@ const PATIENTS: Patient[] = [
     trend: "up",
     status: "良好",
     lastSession: "2小時前",
-    nextAppt: formatShiftedMonthDayTime("2026-07-05T14:00:00"),
+    nextAppt: formatShiftedMonthDayTime("2026-07-18T14:00:00"),
     progress: [60, 68, 72, 75, 80, 85, 87],
     assignedExerciseIds: ["long-arc-quad", "tke", "sit-to-stand", "seated-dorsiflexion"],
   },
@@ -143,7 +142,7 @@ const PATIENTS: Patient[] = [
     trend: "up",
     status: "良好",
     lastSession: "昨日",
-    nextAppt: formatShiftedMonthDayTime("2026-07-03T10:30:00"),
+    nextAppt: formatShiftedMonthDayTime("2026-07-20T10:30:00"),
     progress: [45, 52, 58, 65, 70, 70, 72],
     assignedExerciseIds: ["bridge", "pelvic-tilt", "seated-side-bend", "standing-hip-abduction"],
   },
@@ -157,7 +156,7 @@ const PATIENTS: Patient[] = [
     trend: "down",
     status: "注意",
     lastSession: "3天前",
-    nextAppt: formatShiftedMonthDayTime("2026-07-02T09:00:00"),
+    nextAppt: formatShiftedMonthDayTime("2026-07-19T09:00:00"),
     progress: [70, 65, 60, 58, 50, 48, 45],
     assignedExerciseIds: ["shoulder-press", "long-arc-quad", "standing-hip-abduction-band", "sit-to-stand", "chair-calf-raise"],
   },
@@ -171,7 +170,7 @@ const PATIENTS: Patient[] = [
     trend: "up",
     status: "良好",
     lastSession: "1小時前",
-    nextAppt: formatShiftedMonthDayTime("2026-07-04T15:30:00"),
+    nextAppt: formatShiftedMonthDayTime("2026-07-21T15:30:00"),
     progress: [70, 78, 82, 87, 90, 93, 95],
     assignedExerciseIds: ["tube-shoulder-abduction", "lateral-raise", "scapula-squeeze", "bicep-curl"],
   },
@@ -185,7 +184,7 @@ const PATIENTS: Patient[] = [
     trend: "flat",
     status: "注意",
     lastSession: "2天前",
-    nextAppt: formatShiftedMonthDayTime("2026-07-06T11:00:00"),
+    nextAppt: formatShiftedMonthDayTime("2026-07-23T11:00:00"),
     progress: [55, 58, 56, 60, 57, 59, 58],
     assignedExerciseIds: ["seated-ankle-eversion-fixed", "band-calf-raise", "seated-dorsiflexion", "long-arc-quad"],
   },
@@ -1134,10 +1133,6 @@ function PatientDetailPanel({
       </div>
 
       <div className="p-3 space-y-3 overflow-y-auto flex-1 flex flex-col min-h-0">
-        {patient.id === DEFAULT_PATIENT_ID && (
-          <DailyRevealStatusCard variant="doctor" compact />
-        )}
-
         <div className="grid grid-cols-2 gap-2">
           {[
             {

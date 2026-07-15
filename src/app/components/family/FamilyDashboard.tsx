@@ -1,6 +1,5 @@
 import { useNavigate } from "react-router";
 import { useMemo, useRef, useState } from "react";
-import { parseISO } from "date-fns";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -28,8 +27,8 @@ import {
 import { DEFAULT_PATIENT_ID, getPatientProfile } from "../../data/patientProfiles";
 import {
   formatAppointmentShort,
-  getAppointmentsForPatient,
   getNextAppointment,
+  getUpcomingAppointments,
 } from "../../data/patientAppointments";
 import { useLiveStreak, usePatientAnalytics, useTodaySummary } from "../../hooks/useLiveProgress";
 import { sendEncouragement, ENCOURAGEMENT_PRESETS } from "../../data/encouragements";
@@ -143,12 +142,10 @@ export function FamilyDashboard() {
   const patientProfile = getPatientProfile(DEFAULT_PATIENT_ID)!;
   const analytics = usePatientAnalytics(DEFAULT_PATIENT_ID);
   const nextAppointment = getNextAppointment(DEFAULT_PATIENT_ID);
-  const upcomingAppointments = useMemo(() => {
-    const now = new Date();
-    return getAppointmentsForPatient(DEFAULT_PATIENT_ID).filter(
-      (appt) => parseISO(appt.datetime) >= now
-    );
-  }, []);
+  const upcomingAppointments = useMemo(
+    () => getUpcomingAppointments(DEFAULT_PATIENT_ID),
+    []
+  );
 
   return (
     <div className="portal-large-text rehab-app-shell bg-gradient-to-br from-rose-50/40 via-stone-50 to-sky-50/30 overflow-hidden flex flex-col">

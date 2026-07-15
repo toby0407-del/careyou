@@ -258,7 +258,7 @@ export const milestones: Milestone[] = [
     current: 5,
     unit: "天",
     unlocked: true,
-    unlockedDate: shiftIsoDate("2026-07-13"),
+    unlockedDate: shiftIsoDate("2026-07-15"),
     color: "text-rose-600",
     bg: "bg-rose-50",
     reward: "獨立復健者徽章",

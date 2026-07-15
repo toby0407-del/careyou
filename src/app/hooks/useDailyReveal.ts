@@ -1,8 +1,7 @@
-/** 今日照片解鎖牆 — 依當日關卡數隨機抽照片，每完成一關解鎖一張 */
+/** 今日照片解鎖牆 — 回憶錄順序對應關卡，每完成一關解鎖一張 */
 import { useMemo, useSyncExternalStore } from "react";
 import { loadGalleryPhotos, type GalleryPhoto } from "../data/timeGallery";
 import { getLiveExercises, subscribeProgress, todayStr } from "../data/progressStore";
-import { seededShuffle } from "../lib/imageUpload";
 
 function subscribeGallery(listener: () => void) {
   const onUpdate = () => listener();
@@ -42,10 +41,9 @@ export function useDailyReveal() {
     const unlockedCount = exercises.filter((e) => e.completed).length;
     const total = exercises.length;
 
+    // 依回憶錄順序對應關卡：第 1 關→第 1 張，已完成前 N 關即解鎖前 N 張
     const wallPhotos =
-      photos.length > 0
-        ? seededShuffle(photos, `reveal-${today}`).slice(0, total)
-        : [];
+      photos.length > 0 ? photos.slice(0, total) : [];
 
     const slots: DailyRevealSlot[] = exercises.map((ex, i) => ({
       photo: wallPhotos[i] ?? {

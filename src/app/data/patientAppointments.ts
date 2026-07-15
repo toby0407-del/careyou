@@ -1,5 +1,6 @@
 import { format, parseISO } from "date-fns";
 import { zhTW } from "date-fns/locale";
+import { getAppNow } from "../lib/appClock";
 import { shiftIsoDateTime } from "../lib/mockTime";
 
 export interface PatientAppointment {
@@ -16,13 +17,17 @@ export interface PatientAppointment {
   note?: string;
 }
 
+/**
+ * 相對示範日 APP_DEMO_TODAY（2026-07-15）排未來回診，
+ * 避免「今日」釘死後回診全被當成已過期而顯示空白。
+ */
 const appointments: PatientAppointment[] = [
   {
     id: "a1",
     patientId: "p1",
     department: "骨科復健科",
     physician: "陳建宏 醫師",
-    datetime: shiftIsoDateTime("2026-07-05T14:00:00"),
+    datetime: shiftIsoDateTime("2026-07-18T14:00:00"),
     location: "復健大樓 3F 305 診",
     clinicNumber: "305 診",
     purpose: "膝關節功能評估與復健處方調整",
@@ -34,7 +39,7 @@ const appointments: PatientAppointment[] = [
     patientId: "p1",
     department: "新陳代謝科",
     physician: "王怡君 醫師",
-    datetime: shiftIsoDateTime("2026-07-08T10:30:00"),
+    datetime: shiftIsoDateTime("2026-07-22T10:30:00"),
     location: "門診大樓 2F 218 診",
     clinicNumber: "218 診",
     purpose: "術後血糖與體重追蹤",
@@ -46,7 +51,7 @@ const appointments: PatientAppointment[] = [
     patientId: "p1",
     department: "心臟內科",
     physician: "林志遠 醫師",
-    datetime: shiftIsoDateTime("2026-07-12T15:00:00"),
+    datetime: shiftIsoDateTime("2026-07-29T15:00:00"),
     location: "門診大樓 4F 412 診",
     clinicNumber: "412 診",
     purpose: "術前術後心血管風險追蹤",
@@ -58,7 +63,7 @@ const appointments: PatientAppointment[] = [
     patientId: "p2",
     department: "復健醫學科",
     physician: "林雅婷 醫師",
-    datetime: shiftIsoDateTime("2026-07-03T10:30:00"),
+    datetime: shiftIsoDateTime("2026-07-20T10:30:00"),
     location: "復健大樓 2F 201 診",
     clinicNumber: "201 診",
     purpose: "術後步態與肌力評估",
@@ -69,7 +74,7 @@ const appointments: PatientAppointment[] = [
     patientId: "p3",
     department: "神經復健科",
     physician: "陳建宏 醫師",
-    datetime: shiftIsoDateTime("2026-07-02T09:00:00"),
+    datetime: shiftIsoDateTime("2026-07-19T09:00:00"),
     location: "復健大樓 4F 402 診",
     clinicNumber: "402 診",
     purpose: "神經復健進度追蹤",
@@ -83,10 +88,20 @@ export function getAppointmentsForPatient(patientId: string): PatientAppointment
     .sort((a, b) => a.datetime.localeCompare(b.datetime));
 }
 
+/** 尚未過期的回診（依示範日「現在」） */
+export function getUpcomingAppointments(
+  patientId: string,
+  referenceDate = getAppNow()
+): PatientAppointment[] {
+  return getAppointmentsForPatient(patientId).filter(
+    (a) => parseISO(a.datetime) >= referenceDate
+  );
+}
+
 /** 取得最近一筆尚未過期的回診；若皆已過期則回傳排序後最後一筆 */
 export function getNextAppointment(
   patientId: string,
-  referenceDate = new Date()
+  referenceDate = getAppNow()
 ): PatientAppointment | undefined {
   const list = getAppointmentsForPatient(patientId);
   if (list.length === 0) return undefined;

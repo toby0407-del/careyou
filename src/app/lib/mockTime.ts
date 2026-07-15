@@ -2,7 +2,7 @@ import { addDays, addMilliseconds, differenceInCalendarDays, format, parseISO, s
 import { zhTW } from "date-fns/locale";
 import { getAppBusinessDate } from "./appClock";
 
-const DEFAULT_ANCHOR_DATE = "2026-07-07";
+const DEFAULT_ANCHOR_DATE = "2026-07-15";
 
 export function shiftIsoDate(date: string, anchorDate = DEFAULT_ANCHOR_DATE): string {
   const anchor = startOfDay(parseISO(anchorDate));

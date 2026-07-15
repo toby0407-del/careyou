@@ -1,13 +1,25 @@
 /**
- * 小伴本機 LLM — WebLLM + WebGPU（Qwen2.5-3B，中文強）
- * 首次開啟會下載模型並快取，之後可離線自由對話。
- * 失敗時依序退回 1.5B → 0.5B。
+ * 小伴本機 LLM — WebLLM + WebGPU（Qwen2.5）
+ * 預設 fast：先載 1.5B（開放聊天較有邏輯），再退 0.5B；
+ * quality：優先 3B（中文較強，但首次下載/推論較久）。
+ * 已知意圖（休息／加油／回診／早餐等）由規則引擎處理，不依賴小模型。
  */
 import type { ChatCompletionMessageParam, MLCEngineInterface } from "@mlc-ai/web-llm";
-import { LLM_HISTORY_TURNS } from "./companionConfig";
+import {
+  getCompanionLlmMode,
+  LLM_CHAT_HISTORY_TURNS,
+  LLM_MAX_TOKENS_FAST,
+  LLM_MAX_TOKENS_QUALITY,
+} from "./companionConfig";
 
-/** 優先 3B（中文強、適合查 App + 聊天）；記憶體不足再退回較小模型 */
-const MODEL_CANDIDATES = [
+const MODELS_FAST = [
+  "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
+  "Qwen2.5-1.5B-Instruct-q4f32_1-MLC",
+  "Qwen2.5-0.5B-Instruct-q4f16_1-MLC",
+  "Qwen2.5-0.5B-Instruct-q4f32_1-MLC",
+] as const;
+
+const MODELS_QUALITY = [
   "Qwen2.5-3B-Instruct-q4f16_1-MLC",
   "Qwen2.5-3B-Instruct-q4f32_1-MLC",
   "Qwen2.5-1.5B-Instruct-q4f16_1-MLC",
@@ -21,6 +33,7 @@ export type LlmLoadProgress = { text: string; progress: number };
 let engine: MLCEngineInterface | null = null;
 let initPromise: Promise<MLCEngineInterface | null> | null = null;
 let activeModelId: string | null = null;
+let loadedForMode: string | null = null;
 
 export function isWebGpuSupported(): boolean {
   return typeof navigator !== "undefined" && "gpu" in navigator;
@@ -42,35 +55,60 @@ export function isCompanionLlmReady(): boolean {
   return engine != null;
 }
 
+function candidateModels() {
+  return getCompanionLlmMode() === "quality" ? MODELS_QUALITY : MODELS_FAST;
+}
+
 /** 預載本機 LLM（開啟對話框時呼叫） */
 export async function ensureCompanionLlm(
   onProgress?: (p: LlmLoadProgress) => void
 ): Promise<MLCEngineInterface | null> {
   if (!isWebGpuSupported()) return null;
-  if (engine) return engine;
+
+  const mode = getCompanionLlmMode();
+  if (engine && loadedForMode === mode) return engine;
+
+  // 模式切換時丟棄舊引擎，重新載入對應模型清單
+  if (engine && loadedForMode !== mode) {
+    try {
+      engine.unload?.();
+    } catch {
+      /* ignore */
+    }
+    engine = null;
+    activeModelId = null;
+    initPromise = null;
+  }
+
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
     try {
       const { CreateMLCEngine } = await import("@mlc-ai/web-llm");
+      const models = candidateModels();
+      const modeHint = mode === "fast" ? "快速模式" : "高品質模式";
 
-      for (const modelId of MODEL_CANDIDATES) {
+      for (const modelId of models) {
         try {
           onProgress?.({
-            text: "正在準備本機 AI…",
+            text: `正在準備本機 AI（${modeHint}）…`,
             progress: 0,
           });
           const instance = await CreateMLCEngine(modelId, {
             initProgressCallback: (report) => {
               const pct = Math.round((report.progress || 0) * 100);
               onProgress?.({
-                text: pct > 0 ? `正在載入本機 AI… ${pct}%` : "正在載入本機 AI…",
+                text:
+                  pct > 0
+                    ? `正在載入本機 AI… ${pct}%（${modeHint}）`
+                    : `正在載入本機 AI（${modeHint}）…`,
                 progress: report.progress,
               });
             },
           });
           engine = instance;
           activeModelId = modelId;
+          loadedForMode = mode;
           return instance;
         } catch {
           engine = null;
@@ -101,9 +139,7 @@ export interface LlmChatResult {
 /** 解析簡短思考 + 正式回答 */
 export function parseLlmReply(raw: string): LlmChatResult {
   const cleaned = raw.trim();
-  const thinkMatch = cleaned.match(
-    /【思考】\s*([\s\S]*?)\s*【回答】\s*([\s\S]+)/
-  );
+  const thinkMatch = cleaned.match(/【思考】\s*([\s\S]*?)\s*【回答】\s*([\s\S]+)/);
   if (thinkMatch) {
     return {
       thinking: thinkMatch[1].trim().slice(0, 120),
@@ -132,9 +168,12 @@ export async function chatWithLlm(
   const eng = await ensureCompanionLlm(onProgress);
   if (!eng) return null;
 
+  const mode = getCompanionLlmMode();
+  const maxTokens = mode === "fast" ? LLM_MAX_TOKENS_FAST : LLM_MAX_TOKENS_QUALITY;
+
   const messages: ChatCompletionMessageParam[] = [
     { role: "system", content: systemPrompt },
-    ...history.slice(-LLM_HISTORY_TURNS).map((m) => ({
+    ...history.slice(-LLM_CHAT_HISTORY_TURNS).map((m) => ({
       role: m.role,
       content: m.content,
     })),
@@ -146,7 +185,7 @@ export async function chatWithLlm(
       messages,
       temperature: 0.7,
       top_p: 0.9,
-      max_tokens: 420,
+      max_tokens: maxTokens,
     });
 
     const content = response.choices[0]?.message?.content?.trim();

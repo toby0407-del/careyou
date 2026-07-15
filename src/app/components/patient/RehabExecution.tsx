@@ -30,6 +30,9 @@ import {
   getVoiceEnabled,
   setVoiceEnabled as persistVoiceEnabled,
 } from "../../lib/speech";
+import { getPatientSpeechLang } from "../../lib/patientLanguage";
+import { L } from "../../lib/companionLocale";
+import { SpeechLanguageToggle } from "./SpeechLanguageToggle";
 import { usePoseDetection } from "../../hooks/usePoseDetection";
 import { RehabDemoBriefing } from "./RehabDemoBriefing";
 import { RehabReadyOverlays, RehabReadyPanel } from "./RehabReadyGate";
@@ -49,13 +52,25 @@ import {
 } from "../../utils/poseAnalysis";
 import { Switch } from "../ui/switch";
 
-const VOICE_PROMPTS = [
+const VOICE_PROMPTS_ZH = [
   "很好！保持這個姿勢，繼續加油！",
   "注意保持背部挺直，不要彎腰",
   "動作做得很標準，繼續保持！",
   "請放慢動作速度，感受肌肉用力",
   "再做幾次，你快完成了！",
 ];
+
+const VOICE_PROMPTS_NAN = [
+  "足讚！維持這个姿勢，繼續加油！",
+  "注意背部欲挺直，莫彎腰",
+  "動作做足標準，繼續維持！",
+  "動作放慢咧，感覺肌肉咧用力",
+  "閣做幾个，你快完成矣！",
+];
+
+function getVoicePrompts() {
+  return getPatientSpeechLang() === "nan" ? VOICE_PROMPTS_NAN : VOICE_PROMPTS_ZH;
+}
 
 type RehabPhase = "demo" | "ready" | "training";
 
@@ -83,7 +98,7 @@ export function RehabExecution() {
   const [currentSet, setCurrentSet] = useState(1);
   const [currentRep, setCurrentRep] = useState(0);
   const [validReps, setValidReps] = useState(0);
-  const [currentPrompt, setCurrentPrompt] = useState(VOICE_PROMPTS[0]);
+  const [currentPrompt, setCurrentPrompt] = useState(() => getVoicePrompts()[0]);
   const [showPrompt, setShowPrompt] = useState(false);
   const [showComplete, setShowComplete] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -149,7 +164,10 @@ export function RehabExecution() {
     setSessionResult(null);
     setPhase("training");
     speakIfOn(
-      `開始訓練！${exercise.name}，共 ${exercise.sets} 組、每組 ${exercise.repsPerSet} 次。${exercise.instruction}`,
+      L(
+        `開始訓練！${exercise.name}，共 ${exercise.sets} 組、每組 ${exercise.repsPerSet} 次。${exercise.instruction}`,
+        `開始訓練！${exercise.name}，共 ${exercise.sets} 組、逐組 ${exercise.repsPerSet} 擺。${exercise.instruction}`
+      ),
       true
     );
   }, [exercise, speakIfOn]);
@@ -162,8 +180,11 @@ export function RehabExecution() {
   useEffect(() => {
     if (phase === "demo" && !demoSpokenRef.current && !isLocked) {
       demoSpokenRef.current = true;
+      const nan = getPatientSpeechLang() === "nan";
       speakIfOn(
-        `${exercise.name}，共 ${exercise.sets} 組、每組 ${exercise.repsPerSet} 次。${exercise.instruction}。準備好後，請按「準備開始」。`
+        nan
+          ? `${exercise.name}，共 ${exercise.sets} 組、逐組 ${exercise.repsPerSet} 擺。${exercise.instruction}。準備好了，請按「準備開始」。`
+          : `${exercise.name}，共 ${exercise.sets} 組、每組 ${exercise.repsPerSet} 次。${exercise.instruction}。準備好後，請按「準備開始」。`
       );
     }
   }, [phase, isLocked, exercise, speakIfOn]);
@@ -173,7 +194,12 @@ export function RehabExecution() {
   useEffect(() => {
     if (phase === "ready" && !readySpokenRef.current) {
       readySpokenRef.current = true;
-      speakIfOn("請站進畫面中央，讓鏡頭看到全身。舉起一隻手保持兩秒，訓練就會開始！", true);
+      speakIfOn(
+        getPatientSpeechLang() === "nan"
+          ? "請徛入去畫面中央，予鏡頭看著全身。扞一支手維持兩秒，訓練就會開始！"
+          : "請站進畫面中央，讓鏡頭看到全身。舉起一隻手保持兩秒，訓練就會開始！",
+        true
+      );
     }
     if (phase !== "ready") readySpokenRef.current = false;
   }, [phase, speakIfOn]);
@@ -190,7 +216,12 @@ export function RehabExecution() {
     if (avg(late) > avg(early) * 1.7) {
       restSuggestedRef.current = true;
       setRestSuggested(true);
-      speakIfOn("我注意到你的動作變慢了，需要休息一下嗎？隨時可以按暫停，不用勉強。", true);
+      speakIfOn(
+        getPatientSpeechLang() === "nan"
+          ? "我看你動作變慢矣，需要休息一下無？隨時通按暫停，莫勉強。"
+          : "我注意到你的動作變慢了，需要休息一下嗎？隨時可以按暫停，不用勉強。",
+        true
+      );
       setTimeout(() => setRestSuggested(false), 8000);
     }
   }, [speakIfOn]);
@@ -242,7 +273,12 @@ export function RehabExecution() {
         const nowMs = performance.now();
         if (nowMs - lastInvalidSpeakRef.current > 6000) {
           lastInvalidSpeakRef.current = nowMs;
-          speakIfOn("這次幅度不足，不計入。放慢速度，再彎多一點。");
+          speakIfOn(
+            L(
+              "這次幅度不足，不計入。放慢速度，再彎多一點。",
+              "這擺幅度無夠，袂算。放慢咧，閣彎較濟一屑。"
+            )
+          );
         }
       }
 
@@ -266,7 +302,10 @@ export function RehabExecution() {
             repTimesRef.current = [];
             restSuggestedRef.current = false;
             speakIfOn(
-              `太棒了，第 ${finishedSet} 組完成！休息一下，準備第 ${finishedSet + 1} 組。`,
+              L(
+                `太棒了，第 ${finishedSet} 組完成！休息一下，準備第 ${finishedSet + 1} 組。`,
+                `足讚！第 ${finishedSet} 組完成矣！歇一下，準備第 ${finishedSet + 1} 組。`
+              ),
               true
             );
           }
@@ -374,7 +413,10 @@ export function RehabExecution() {
     }, 350);
 
     speakIfOn(
-      `恭喜！${exercise.name}全部完成，標準動作 ${valid} 次，動作品質 ${quality} 分，獲得 ${stars} 顆星！下一關已經為你解鎖了。`,
+      L(
+        `恭喜！${exercise.name}全部完成，標準動作 ${valid} 次，動作品質 ${quality} 分，獲得 ${stars} 顆星！下一關已經為你解鎖了。`,
+        `恭喜！${exercise.name}攏總完成，標準動作 ${valid} 擺，動作品質 ${quality} 分，提著 ${stars} 粒星！下一關已經共你開放矣。`
+      ),
       true
     );
   }, [showComplete, exercise, elapsedSeconds, speakIfOn]);
@@ -383,10 +425,11 @@ export function RehabExecution() {
   useEffect(() => {
     if (phase !== "training" || !voiceEnabled || isPaused || cameraState !== "ready") return;
     const interval = setInterval(() => {
-      const idx = Math.floor(Math.random() * VOICE_PROMPTS.length);
-      setCurrentPrompt(VOICE_PROMPTS[idx]);
+      const prompts = getVoicePrompts();
+      const idx = Math.floor(Math.random() * prompts.length);
+      setCurrentPrompt(prompts[idx]);
       setShowPrompt(true);
-      speak(VOICE_PROMPTS[idx]);
+      speak(prompts[idx]);
       setTimeout(() => setShowPrompt(false), 3500);
     }, 15000);
     return () => clearInterval(interval);
@@ -491,6 +534,7 @@ export function RehabExecution() {
             videoRef={videoRef}
             keypoints={keypoints}
             visible={showSkeleton && cameraState === "ready"}
+            showPersonHalo={phase === "ready"}
             personDetected={activeKeypoints >= 5}
             highlightJoint={exercise.pose.joint.replace(/^(left|right)/, "").toLowerCase()}
           />
@@ -665,25 +709,32 @@ export function RehabExecution() {
                   {exercise.name}
                 </h2>
               </div>
-              <button
-                onClick={() =>
-                  setVoiceEnabled((v) => {
-                    const next = !v;
-                    persistVoiceEnabled(next);
-                    if (!next) stopSpeaking();
-                    return next;
-                  })
-                }
-                className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center"
-                aria-label={voiceEnabled ? "關閉語音教練" : "開啟語音教練"}
-                aria-pressed={voiceEnabled}
-              >
-                {voiceEnabled ? (
-                  <Volume2 className="w-4 h-4 text-teal-200" />
-                ) : (
-                  <VolumeX className="w-4 h-4 text-slate-400" />
-                )}
-              </button>
+              <div className="flex items-center gap-1.5">
+                <SpeechLanguageToggle
+                  size="sm"
+                  className="bg-white/10 border-white/15 [&_button]:min-w-[2.25rem] [&_button[aria-pressed=true]]:bg-teal-400 [&_button[aria-pressed=true]]:text-white [&_button[aria-pressed=false]]:text-white/80"
+                  onChanged={() => stopSpeaking()}
+                />
+                <button
+                  onClick={() =>
+                    setVoiceEnabled((v) => {
+                      const next = !v;
+                      persistVoiceEnabled(next);
+                      if (!next) stopSpeaking();
+                      return next;
+                    })
+                  }
+                  className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center"
+                  aria-label={voiceEnabled ? "關閉語音教練" : "開啟語音教練"}
+                  aria-pressed={voiceEnabled}
+                >
+                  {voiceEnabled ? (
+                    <Volume2 className="w-4 h-4 text-teal-200" />
+                  ) : (
+                    <VolumeX className="w-4 h-4 text-slate-400" />
+                  )}
+                </button>
+              </div>
             </div>
 
             <AnimatePresence>
@@ -777,7 +828,12 @@ export function RehabExecution() {
                 onClick={() =>
                   setIsPaused((p) => {
                     const next = !p;
-                    speakIfOn(next ? "已暫停，好好休息，不用急。" : "繼續加油！", true);
+                    speakIfOn(
+                      next
+                        ? L("已暫停，好好休息，不用急。", "已經暫停矣，好好歇睏，免著急。")
+                        : L("繼續加油！", "繼續加油！"),
+                      true
+                    );
                     return next;
                   })
                 }

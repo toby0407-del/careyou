@@ -87,7 +87,7 @@ export const dailyResults: DayResult[] = [
   ...buildRange(2026, 4, 8, 30),
   ...buildRange(2026, 5, 1, 31),
   ...buildRange(2026, 6, 1, 30),
-  ...buildRange(2026, 7, 1, 13),
+  ...buildRange(2026, 7, 1, 15),
 ].map((day) => {
   if (day.date === "2026-07-01") {
     return {
@@ -97,7 +97,7 @@ export const dailyResults: DayResult[] = [
       durationMin: 20,
       exercises: [
         { name: "膝關節屈伸", level: 1, stars: 3, quality: 90, durationMin: 12 },
-        { name: "手腕屈伸", level: 6, stars: 2, quality: 82, durationMin: 8 },
+        { name: "坐姿膝伸直", level: 2, stars: 2, quality: 82, durationMin: 8 },
       ],
     };
   }
@@ -105,15 +105,14 @@ export const dailyResults: DayResult[] = [
   if (day.date === "2026-07-02") {
     return {
       ...day,
-      completed: 5,
+      completed: 4,
       accuracy: 91,
-      durationMin: 46,
+      durationMin: 40,
       exercises: [
         { name: "膝關節屈伸", level: 1, stars: 3, quality: 94, durationMin: 12 },
-        { name: "踝關節旋轉", level: 2, stars: 3, quality: 90, durationMin: 8 },
-        { name: "橋式運動", level: 3, stars: 2, quality: 88, durationMin: 10 },
-        { name: "腹部收縮", level: 4, stars: 2, quality: 89, durationMin: 8 },
-        { name: "手腕屈伸", level: 6, stars: 3, quality: 93, durationMin: 8 },
+        { name: "坐姿膝伸直", level: 2, stars: 3, quality: 90, durationMin: 8 },
+        { name: "坐到站", level: 3, stars: 2, quality: 88, durationMin: 10 },
+        { name: "肩關節外展", level: 5, stars: 3, quality: 93, durationMin: 10 },
       ],
     };
   }
@@ -121,7 +120,7 @@ export const dailyResults: DayResult[] = [
   return day;
 }).map((day) => ({
   ...day,
-  date: shiftIsoDate(day.date, "2026-07-13"),
+  date: shiftIsoDate(day.date, "2026-07-15"),
 }));
 
 export function getDayResult(date: string): DayResult | undefined {

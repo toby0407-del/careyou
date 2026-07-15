@@ -85,7 +85,7 @@ const SEED_MEDS: Medication[] = [
     sideEffects: ["胃部不適或消化不良", "頭痛", "水腫", "少數人可能血壓上升"],
     cautions: ["有胃潰瘍病史請先告知醫師", "勿與其他 NSAID 併用", "若胸悶、喘不過氣請立即就醫"],
     startDate: "2026-06-20",
-    endDate: "2026-07-20",
+    endDate: "2026-07-31",
     color: "#0d9488",
   },
   {
@@ -121,7 +121,7 @@ const SEED_MEDS: Medication[] = [
     sideEffects: ["腹瀉或便秘", "腹脹", "頭痛", "少數人可能頭暈"],
     cautions: ["長期使用請依醫師指示", "勿咬碎腸溶錠"],
     startDate: "2026-06-20",
-    endDate: "2026-07-20",
+    endDate: "2026-07-31",
     color: "#7c3aed",
   },
   {
@@ -139,7 +139,7 @@ const SEED_MEDS: Medication[] = [
     sideEffects: ["容易瘀青或出血", "牙齦出血", "胃部不適", "少數人可能貧血"],
     cautions: ["跌倒撞傷請告知醫師", "手術／拔牙前務必告知正在服用抗凝血藥", "若黑便、吐血請立即就醫"],
     startDate: "2026-06-20",
-    endDate: "2026-07-05",
+    endDate: "2026-07-25",
     color: "#dc2626",
   },
   {
@@ -174,7 +174,7 @@ const SEED_MEDS: Medication[] = [
     sideEffects: ["隔日嗜睡", "作夢變多", "輕微頭痛"],
     cautions: ["服藥後勿開車或操作機械", "隔日若仍昏沉請告知醫師調整"],
     startDate: "2026-06-22",
-    endDate: "2026-07-12",
+    endDate: "2026-07-28",
     color: "#4f46e5",
   },
 ];

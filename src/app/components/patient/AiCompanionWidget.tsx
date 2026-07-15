@@ -33,11 +33,12 @@ import {
   isSpeechRecognitionSupported,
   listenOnce,
 } from "../../lib/speechRecognition";
+import { getSpeechRecognitionLang } from "../../lib/patientLanguage";
+import { SpeechLanguageToggle } from "./SpeechLanguageToggle";
 
 interface AiMessage {
   id: string;
   text: string;
-  thinking?: string;
   sender: "user" | "ai";
   time: string;
 }
@@ -76,13 +77,13 @@ function measurePatientHeaderAnchor(): { x: number; y: number } | null {
 
 function measureMedsCompanionAnchor(): { x: number; y: number } | null {
   if (typeof document === "undefined") return null;
-  const header = document.querySelector('[data-companion-anchor="meds-noon"]');
-  if (header) {
-    const rect = header.getBoundingClientRect();
+  const noonCol = document.querySelector('[data-med-slot="noon"]');
+  if (noonCol) {
+    const rect = noonCol.getBoundingClientRect();
     if (rect.width > 0 && rect.height > 0) {
       return {
         x: rect.left + rect.width / 2 - BTN_SIZE / 2,
-        y: rect.top + rect.height / 2 - BTN_SIZE / 2,
+        y: rect.top - BTN_SIZE / 2 + 4,
       };
     }
   }
@@ -177,7 +178,7 @@ export function AiCompanionWidget({
   resetKey,
 }: {
   patientName: string;
-  /** 切換分頁時，小伴回到該分頁預設落點（復健等：頂部列；用藥：中午欄） */
+  /** 切換分頁時，小伴回到該分頁預設落點（復健等：頂部列；用藥：中午欄上緣置中） */
   resetKey?: string;
 }) {
   const [open, setOpen] = useState(false);
@@ -195,6 +196,7 @@ export function AiCompanionWidget({
   const [llmLoadText, setLlmLoadText] = useState("");
   const openRef = useRef(open);
   const greetedRef = useRef(false);
+  const replyGenRef = useRef(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const listeningRef = useRef(false);
@@ -331,12 +333,12 @@ export function AiCompanionWidget({
 
   const pushAiReply = useCallback(
     (reply: AiReply) => {
+      if (!openRef.current) return;
       setMessages((prev) => [
         ...prev,
         {
           id: `ai-${Date.now()}`,
           text: reply.text,
-          thinking: reply.thinking,
           sender: "ai",
           time: getTime(),
         },
@@ -351,24 +353,32 @@ export function AiCompanionWidget({
   useEffect(() => {
     if (!open || greetedRef.current) return;
     greetedRef.current = true;
+    const gen = ++replyGenRef.current;
     setIsTyping(true);
     const timer = setTimeout(() => {
+      if (gen !== replyGenRef.current || !openRef.current) return;
       setIsTyping(false);
       pushAiReply(buildProactiveGreeting(patientName));
       markAllEncouragementsRead();
-    }, 700);
+    }, 1500);
     return () => clearTimeout(timer);
   }, [open, patientName, pushAiReply]);
 
   const sendText = async (raw: string) => {
     const text = raw.trim();
-    if (!text || isTyping) return;
+    if (!text) return;
+
+    // 上一句還沒講完就打斷：立刻停語音，改生成這則回覆
+    stopSpeaking();
+    const gen = ++replyGenRef.current;
+
     setMessages((prev) => [
       ...prev,
       { id: `u-${Date.now()}`, text, sender: "user", time: getTime() },
     ]);
     setInput("");
     setIsTyping(true);
+    setListenError(null);
 
     const history: ChatTurn[] = messages.slice(-LLM_HISTORY_TURNS).map((m) => ({
       role: m.sender === "user" ? "user" : "assistant",
@@ -377,13 +387,19 @@ export function AiCompanionWidget({
 
     try {
       const reply = await replyToAsync(text, patientName, history, (p) => {
+        if (gen !== replyGenRef.current) return;
         if (p.text) setLlmLoadText(p.text);
       });
+      if (gen !== replyGenRef.current || !openRef.current) return;
       pushAiReply(reply);
     } catch {
-      pushAiReply(replyTo(text, patientName));
+      if (gen !== replyGenRef.current || !openRef.current) return;
+      await new Promise((r) => setTimeout(r, 1500));
+      if (gen !== replyGenRef.current || !openRef.current) return;
+      const fallback = replyTo(text, patientName);
+      pushAiReply(fallback);
     } finally {
-      setIsTyping(false);
+      if (gen === replyGenRef.current) setIsTyping(false);
     }
   };
 
@@ -395,12 +411,13 @@ export function AiCompanionWidget({
   };
 
   const toggleListen = async () => {
-    if (isTyping) return;
     if (listeningRef.current) {
       listeningRef.current = false;
       setIsListening(false);
       return;
     }
+    // 開始語音輸入前先打斷朗讀，避免邊聽邊講
+    stopSpeaking();
     if (!isSpeechRecognitionSupported()) {
       setListenError("此裝置不支援語音輸入，請改用打字");
       return;
@@ -410,6 +427,7 @@ export function AiCompanionWidget({
     setIsListening(true);
     try {
       const text = await listenOnce({
+        lang: getSpeechRecognitionLang(),
         onInterim: (partial) => setInput(partial),
       });
       if (listeningRef.current) {
@@ -503,6 +521,11 @@ export function AiCompanionWidget({
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <SpeechLanguageToggle
+                      size="sm"
+                      className="bg-white/15 border-white/25 [&_button]:min-w-[2.5rem] [&_button[aria-pressed=true]]:bg-white [&_button[aria-pressed=true]]:text-teal-700 [&_button[aria-pressed=false]]:text-white/90"
+                      onChanged={() => stopSpeaking()}
+                    />
                     {isSpeechSupported() && (
                       <button
                         onClick={toggleVoice}
@@ -553,11 +576,6 @@ export function AiCompanionWidget({
                               : "bg-white text-slate-700 rounded-tl-sm shadow-sm border border-teal-50/70"
                           }`}
                         >
-                          {msg.sender === "ai" && msg.thinking && (
-                            <p className="text-[11px] text-slate-400 mb-1.5 pb-1.5 border-b border-slate-100">
-                              思考：{msg.thinking}
-                            </p>
-                          )}
                           {msg.text}
                         </div>
                         <p
@@ -572,8 +590,8 @@ export function AiCompanionWidget({
                   ))}
 
                   {isTyping && (
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-50 overflow-hidden">
+                    <div className="flex items-start gap-2">
+                      <div className="w-8 h-8 rounded-full bg-teal-50 border border-teal-50 overflow-hidden flex-shrink-0">
                         <img
                           src={POSE_IMAGE.tip}
                           alt=""
@@ -581,15 +599,18 @@ export function AiCompanionWidget({
                           aria-hidden
                         />
                       </div>
-                      <div className="bg-white border border-teal-50 shadow-sm px-3 py-2.5 rounded-2xl rounded-tl-sm flex gap-1">
-                        {[0, 1, 2].map((i) => (
-                          <motion.div
-                            key={i}
-                            className="w-2 h-2 bg-teal-200 rounded-full"
-                            animate={{ y: [0, -4, 0] }}
-                            transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
-                          />
-                        ))}
+                      <div className="bg-white border border-teal-50 shadow-sm px-3.5 py-2.5 rounded-2xl rounded-tl-sm max-w-[80%]">
+                        <p className="text-[11px] text-slate-400 mb-1.5">思考中…</p>
+                        <div className="flex gap-1">
+                          {[0, 1, 2].map((i) => (
+                            <motion.div
+                              key={i}
+                              className="w-2 h-2 bg-teal-200 rounded-full"
+                              animate={{ y: [0, -4, 0] }}
+                              transition={{ duration: 0.6, repeat: Infinity, delay: i * 0.15 }}
+                            />
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
@@ -602,8 +623,9 @@ export function AiCompanionWidget({
                     {suggestions.map((q) => (
                       <button
                         key={q}
+                        type="button"
                         onClick={() => sendText(q)}
-                        className="px-3.5 py-2 rounded-full bg-teal-50 border border-teal-50 text-teal-400 text-xs hover:bg-teal-50 transition-colors"
+                        className="px-3.5 py-2 rounded-full bg-teal-50 border border-teal-100 text-teal-700 text-xs hover:bg-teal-100/80 transition-colors"
                         style={{ fontWeight: 700 }}
                       >
                         {q}

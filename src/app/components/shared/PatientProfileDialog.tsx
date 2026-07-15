@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useEffect, useState } from "react";
 import {
   X,
   User,
@@ -11,6 +12,12 @@ import {
   AlertCircle,
 } from "lucide-react";
 import type { PatientProfile } from "../../data/patientProfiles";
+import { SpeechLanguageToggle } from "../patient/SpeechLanguageToggle";
+import {
+  getPatientSpeechLang,
+  patientSpeechLangLabel,
+  subscribePatientSpeechLang,
+} from "../../lib/patientLanguage";
 
 type ProfileVariant = "family" | "doctor" | "patient";
 
@@ -83,6 +90,12 @@ export function PatientProfileDialog({
   variant = "family",
 }: PatientProfileDialogProps) {
   const theme = variantTheme[variant];
+  const [speechLang, setSpeechLang] = useState(() => getPatientSpeechLang());
+
+  useEffect(() => {
+    if (variant !== "patient") return;
+    return subscribePatientSpeechLang(setSpeechLang);
+  }, [variant]);
 
   if (!open) return null;
 
@@ -154,6 +167,22 @@ export function PatientProfileDialog({
               </p>
             </div>
           </div>
+
+          {variant === "patient" && (
+            <div className="mb-4 p-3 rounded-xl border border-teal-100 bg-teal-50/50">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-slate-800 text-sm" style={{ fontWeight: 700 }}>
+                    語音語言
+                  </p>
+                  <p className="text-slate-500 text-xs mt-0.5">
+                    小伴朗讀、語音教練用「{patientSpeechLangLabel(speechLang)}」
+                  </p>
+                </div>
+                <SpeechLanguageToggle size="md" />
+              </div>
+            </div>
+          )}
 
           <div className="rounded-xl border border-slate-100 bg-slate-50/50 px-3">
             <InfoRow icon={Building2} label="就診科別" value={profile.department} iconClass={theme.iconClass} iconBg={theme.accentSoft} />

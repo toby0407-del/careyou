@@ -18,7 +18,7 @@ export interface DayStats {
   durationMin: number;
 }
 
-const STORAGE_KEY = "rehabbridge_progress_v1";
+const STORAGE_KEY = "rehabbridge_progress_v3";
 
 /** 展示情境的基礎連續天數（mock 歷史至昨天為止） */
 const BASE_STREAK_DAYS = 12;
@@ -56,23 +56,71 @@ export function subscribeProgress(listener: () => void) {
   };
 }
 
-/** 種子紀錄 — 對應原 mock：關卡 1 已通關（3 星） */
+/** 今日已破前三關；昨日留一筆避免連續天數中斷 */
 function seedState(): ProgressState {
-  const yesterday = new Date(getAppBusinessDate().getTime() - 24 * 60 * 60 * 1000);
-  const date = getAppBusinessDateStr(yesterday);
+  const today = getAppBusinessDateStr();
+  const yesterday = getAppBusinessDateStr(
+    new Date(getAppBusinessDate().getTime() - 24 * 60 * 60 * 1000)
+  );
+
+  const todayLevels: Array<{
+    exerciseId: string;
+    exerciseName: string;
+    hour: string;
+    stars: 1 | 2 | 3;
+    quality: number;
+    durationSec: number;
+  }> = [
+    {
+      exerciseId: "knee-flexion",
+      exerciseName: "膝關節屈伸",
+      hour: "08:20:00",
+      stars: 3,
+      quality: 92,
+      durationSec: 580,
+    },
+    {
+      exerciseId: "long-arc-quad",
+      exerciseName: "坐姿膝伸直",
+      hour: "09:05:00",
+      stars: 3,
+      quality: 90,
+      durationSec: 540,
+    },
+    {
+      exerciseId: "sit-to-stand",
+      exerciseName: "坐到站",
+      hour: "09:50:00",
+      stars: 2,
+      quality: 86,
+      durationSec: 620,
+    },
+  ];
+
   return {
     sessions: [
       {
         exerciseId: "knee-flexion",
         exerciseName: "膝關節屈伸",
-        date,
-        completedAt: `${date}T09:30:00.000Z`,
+        date: yesterday,
+        completedAt: `${yesterday}T09:30:00.000Z`,
         stars: 3,
         quality: 94,
-        validReps: 45,
-        invalidReps: 3,
-        durationSec: 660,
+        validReps: 36,
+        invalidReps: 2,
+        durationSec: 600,
       },
+      ...todayLevels.map((lv) => ({
+        exerciseId: lv.exerciseId,
+        exerciseName: lv.exerciseName,
+        date: today,
+        completedAt: `${today}T${lv.hour}.000Z`,
+        stars: lv.stars,
+        quality: lv.quality,
+        validReps: 34,
+        invalidReps: 2,
+        durationSec: lv.durationSec,
+      })),
     ],
   };
 }

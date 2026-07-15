@@ -1,9 +1,13 @@
-import { format, startOfDay, subDays } from "date-fns";
+import { format, parseISO, startOfDay, subDays } from "date-fns";
 
 const ROLLOVER_HOUR = 6;
 
-export function getAppNow(reference = new Date()): Date {
-  return reference;
+/** 展示用「今日」固定為 2026-07-15（與Demo／簡報日期對齊） */
+export const APP_DEMO_TODAY = "2026-07-15";
+
+export function getAppNow(_reference = new Date()): Date {
+  const d = parseISO(`${APP_DEMO_TODAY}T12:00:00`);
+  return d;
 }
 
 export function getAppBusinessDate(reference = new Date()): Date {

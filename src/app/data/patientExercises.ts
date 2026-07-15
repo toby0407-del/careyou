@@ -3,6 +3,11 @@ import type { Exercise } from "./exerciseTypes";
 
 export type { Exercise } from "./exerciseTypes";
 
+/**
+ * 患者端今日關卡 — 專為展示／鏡頭計次穩定度挑選
+ * 只保留大關節、幅度明顯、正面拍攝容易成功的動作
+ * （踝部細動、等長收腹、手腕等已移出今日地圖）
+ */
 export const categories = [
   {
     id: "lower",
@@ -19,14 +24,14 @@ export const categories = [
         id: "knee-flexion",
         name: "膝關節屈伸",
         nameEn: "Knee Flexion/Extension",
-        setsReps: "3 組 × 15 次",
-        duration: "約 12 分鐘",
-        difficulty: 2 as const,
+        setsReps: "3 組 × 12 次",
+        duration: "約 10 分鐘",
+        difficulty: 1 as const,
         completed: false,
         stars: 0 as const,
         sets: 3,
-        repsPerSet: 15,
-        instruction: "緩慢彎曲膝蓋至90度，然後伸直，保持背部挺直",
+        repsPerSet: 12,
+        instruction: "坐姿或站姿，緩慢彎曲膝蓋再伸直；請側身或正面讓鏡頭看清大腿與小腿",
         level: 1,
         demoMedia: {
           type: "image" as const,
@@ -34,36 +39,87 @@ export const categories = [
           alt: "坐姿膝關節屈伸示意",
         },
         demoTips: [
-          "坐姿或扶椅背站立，單腳緩慢彎曲至約 90 度",
-          "膝蓋朝向正前方，不要內扣或外撇",
-          "伸直時避免鎖死關節，感受大腿前後側肌群",
+          "膝蓋朝正前方，單腳彎至約 90 度後再伸直",
+          "鏡頭請拍到髖、膝、踝三點",
+          "伸直時不要鎖死關節，動作放慢較易計次",
         ],
-        pose: { joint: "leftKnee" as const, flexedAngle: 90, extendedAngle: 165, tolerance: 15 },
+        // 幅度大 + 容差略寬，展示較不易漏計
+        pose: { joint: "leftKnee" as const, flexedAngle: 95, extendedAngle: 160, tolerance: 18 },
       },
       {
-        id: "ankle-rotation",
-        name: "踝關節旋轉",
-        nameEn: "Ankle Rotation",
-        setsReps: "2 組 × 20 次",
+        id: "long-arc-quad",
+        name: "坐姿膝伸直",
+        nameEn: "Long Arc Quad",
+        setsReps: "2 組 × 12 次",
         duration: "約 8 分鐘",
         difficulty: 1 as const,
         completed: false,
         stars: 0 as const,
         sets: 2,
-        repsPerSet: 20,
-        instruction: "以腳踝為軸心，順時針與逆時針各旋轉，動作緩慢穩定",
+        repsPerSet: 12,
+        instruction: "坐在椅子上，將小腿向前伸直再緩慢放下；側面拍攝最清楚",
         level: 2,
         demoMedia: {
           type: "image" as const,
-          url: "https://images.unsplash.com/photo-1516307365426-bea5f780b4ad?w=800&h=500&fit=crop",
-          alt: "踝關節旋轉示意",
+          url: "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?w=800&h=500&fit=crop",
+          alt: "坐姿膝伸直示意",
         },
         demoTips: [
-          "坐姿將腳踝懸空，以腳跟為支點畫圓",
-          "順時針與逆時針各做一半次數",
-          "旋轉幅度以不引起疼痛為準",
+          "坐穩椅面，大腿固定，只動小腿",
+          "伸直到接近水平即可，頂點停約 1 秒",
+          "鏡頭放在座椅側邊，看到整條腿",
         ],
-        pose: { joint: "leftKnee" as const, flexedAngle: 100, extendedAngle: 160, tolerance: 20 },
+        pose: { joint: "leftKnee" as const, flexedAngle: 100, extendedAngle: 165, tolerance: 18 },
+      },
+      {
+        id: "sit-to-stand",
+        name: "坐到站",
+        nameEn: "Sit to Stand",
+        setsReps: "2 組 × 10 次",
+        duration: "約 8 分鐘",
+        difficulty: 2 as const,
+        completed: false,
+        stars: 0 as const,
+        sets: 2,
+        repsPerSet: 10,
+        instruction: "從椅子坐姿站起再坐下，軀幹保持穩定；請全身入鏡",
+        level: 3,
+        demoMedia: {
+          type: "image" as const,
+          url: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=500&fit=crop",
+          alt: "坐到站示意",
+        },
+        demoTips: [
+          "雙腳與肩同寬踩穩，起身時膝蓋朝前",
+          "可輕扶椅緣，避免甩動借力",
+          "鏡頭正面或側面拍攝，從頭到腳都入畫",
+        ],
+        pose: { joint: "leftHip" as const, flexedAngle: 100, extendedAngle: 168, tolerance: 16 },
+      },
+      {
+        id: "mini-squat",
+        name: "半蹲起",
+        nameEn: "Mini Squat",
+        setsReps: "2 組 × 10 次",
+        duration: "約 8 分鐘",
+        difficulty: 2 as const,
+        completed: false,
+        stars: 0 as const,
+        sets: 2,
+        repsPerSet: 10,
+        instruction: "雙腳與肩同寬，緩慢下蹲至大腿微彎再站起；請正面全身入鏡",
+        level: 4,
+        demoMedia: {
+          type: "image" as const,
+          url: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=800&h=500&fit=crop",
+          alt: "半蹲起示意",
+        },
+        demoTips: [
+          "膝蓋朝腳尖方向，不要內夾",
+          "下蹲幅度約 1/3 即可，不必全蹲",
+          "鏡頭正面從頭到腳都入畫，雙手可自然前伸輔助平衡",
+        ],
+        pose: { joint: "leftKnee" as const, flexedAngle: 110, extendedAngle: 165, tolerance: 16 },
       },
     ],
   },
@@ -82,51 +138,26 @@ export const categories = [
         id: "bridge",
         name: "橋式運動",
         nameEn: "Bridge Exercise",
-        setsReps: "3 組 × 12 次",
-        duration: "約 10 分鐘",
+        setsReps: "2 組 × 10 次",
+        duration: "約 8 分鐘",
         difficulty: 2 as const,
         completed: false,
         stars: 0 as const,
-        sets: 3,
-        repsPerSet: 12,
-        instruction: "平躺屈膝，雙腳踩地，臀部上抬至與身體成一直線，停留2秒",
-        level: 3,
+        sets: 2,
+        repsPerSet: 10,
+        instruction: "平躺屈膝，臀部上抬再放下；請側躺式側面拍攝看到髖部抬起",
+        level: 5,
         demoMedia: {
           type: "image" as const,
           url: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&h=500&fit=crop",
           alt: "橋式運動示意",
         },
         demoTips: [
-          "平躺屈膝，雙腳與臀同寬踩穩地面",
-          "吐氣時將臀部上抬至肩、髖、膝呈一直線",
-          "頂點停留 2 秒後緩慢下放",
+          "雙腳與臀同寬踩穩，吐氣抬臀",
+          "抬至肩—髖—膝接近一直線後停留約 1 秒",
+          "鏡頭放側邊，避免俯拍否則髖角不易偵測",
         ],
-        pose: { joint: "leftHip" as const, flexedAngle: 140, extendedAngle: 175, tolerance: 12 },
-      },
-      {
-        id: "ab-contraction",
-        name: "腹部收縮",
-        nameEn: "Abdominal Contraction",
-        setsReps: "3 組 × 15 次",
-        duration: "約 9 分鐘",
-        difficulty: 1 as const,
-        completed: false,
-        stars: 0 as const,
-        sets: 3,
-        repsPerSet: 15,
-        instruction: "深吸一口氣，吐氣時收縮腹部肌群，保持5秒後放鬆",
-        level: 4,
-        demoMedia: {
-          type: "image" as const,
-          url: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&h=500&fit=crop",
-          alt: "腹部收縮示意",
-        },
-        demoTips: [
-          "仰臥屈膝，雙手自然放在腹部",
-          "吐氣時將肚臍向脊椎方向輕輕內收",
-          "保持 5 秒後吸氣放鬆，避免憋氣",
-        ],
-        pose: { joint: "leftHip" as const, flexedAngle: 130, extendedAngle: 170, tolerance: 18 },
+        pose: { joint: "leftHip" as const, flexedAngle: 135, extendedAngle: 172, tolerance: 14 },
       },
     ],
   },
@@ -146,56 +177,49 @@ export const categories = [
         name: "肩關節外展",
         nameEn: "Shoulder Abduction",
         setsReps: "2 組 × 10 次",
-        duration: "約 10 分鐘",
-        difficulty: 3 as const,
+        duration: "約 8 分鐘",
+        difficulty: 2 as const,
         completed: false,
         stars: 0 as const,
         sets: 2,
         repsPerSet: 10,
-        instruction: "手臂由側邊緩慢抬起至水平位置，保持肩膀放鬆不聳肩",
-        level: 5,
+        instruction: "手臂由身側緩慢抬至接近肩高再放下；正面拍攝最穩",
+        level: 6,
         demoMedia: {
           type: "image" as const,
           url: "https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800&h=500&fit=crop",
           alt: "肩關節外展示意",
         },
         demoTips: [
-          "身體站直，手臂貼於身側",
-          "掌心向下，將手臂緩慢抬至與肩同高",
-          "抬至水平即可，避免聳肩或身體側傾",
+          "站直、肩膀放鬆不聳肩",
+          "掌心朝下，抬至與肩同高即可",
+          "鏡頭正面全身入鏡，手臂不要被身體擋住",
         ],
-        pose: { joint: "leftShoulder" as const, flexedAngle: 30, extendedAngle: 85, tolerance: 12 },
-      },
-      {
-        id: "wrist-flexion",
-        name: "手腕屈伸",
-        nameEn: "Wrist Flexion/Extension",
-        setsReps: "3 組 × 20 次",
-        duration: "約 8 分鐘",
-        difficulty: 1 as const,
-        completed: false,
-        stars: 0 as const,
-        sets: 3,
-        repsPerSet: 20,
-        instruction: "前臂平放，緩慢彎曲手腕向上再向下，範圍不超過疼痛角度",
-        level: 6,
-        demoMedia: {
-          type: "image" as const,
-          url: "https://images.unsplash.com/photo-1530103862676-de8c9debad1d?w=800&h=500&fit=crop",
-          alt: "手腕屈伸示意",
-        },
-        demoTips: [
-          "前臂平放於桌面或大腿上，手腕懸空",
-          "緩慢向上彎曲手腕，再向下回到中立",
-          "動作範圍以不引起疼痛為限",
-        ],
-        pose: { joint: "leftShoulder" as const, flexedAngle: 20, extendedAngle: 70, tolerance: 15 },
+        pose: { joint: "leftShoulder" as const, flexedAngle: 25, extendedAngle: 80, tolerance: 15 },
       },
     ],
   },
 ];
 
-export const allExercises: Exercise[] = categories.flatMap((c) => c.exercises);
+/** 今日關卡順序（展示穩定優先） */
+export const TODAY_LEVEL_IDS = [
+  "knee-flexion",
+  "long-arc-quad",
+  "sit-to-stand",
+  "mini-squat",
+  "bridge",
+  "shoulder-abduction",
+] as const;
+
+const exerciseById = new Map(
+  categories.flatMap((c) => c.exercises).map((ex) => [ex.id, ex] as const)
+);
+
+export const allExercises: Exercise[] = TODAY_LEVEL_IDS.map((id) => {
+  const ex = exerciseById.get(id);
+  if (!ex) throw new Error(`缺少動作定義：${id}`);
+  return ex;
+});
 
 export function getExerciseById(id: string): Exercise | undefined {
   return allExercises.find((e) => e.id === id);
@@ -249,11 +273,11 @@ export function getJointLabel(joint: Exercise["pose"]["joint"]): string {
 }
 
 export const weeklyResults = [
-  { day: "週一", completed: 5, total: 6, accuracy: 88 },
-  { day: "週二", completed: 6, total: 6, accuracy: 92 },
-  { day: "週三", completed: 4, total: 6, accuracy: 85 },
-  { day: "週四", completed: 6, total: 6, accuracy: 94 },
-  { day: "週五", completed: 3, total: 6, accuracy: 78 },
-  { day: "週六", completed: 5, total: 6, accuracy: 90 },
-  { day: "今日", completed: 2, total: 6, accuracy: 86 },
+  { day: "週一", completed: 4, total: 5, accuracy: 88 },
+  { day: "週二", completed: 5, total: 5, accuracy: 92 },
+  { day: "週三", completed: 3, total: 5, accuracy: 85 },
+  { day: "週四", completed: 5, total: 5, accuracy: 94 },
+  { day: "週五", completed: 3, total: 5, accuracy: 78 },
+  { day: "週六", completed: 4, total: 5, accuracy: 90 },
+  { day: "今日", completed: 3, total: 5, accuracy: 89 },
 ];

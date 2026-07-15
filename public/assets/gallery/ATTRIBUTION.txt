@@ -1,7 +1,10 @@
-時光迴廊示範照片來源（免費授權，僅供本專案展示）
+時光迴廊回憶錄照片（示範用）
 
-Unsplash License: https://unsplash.com/license
-Pexels License: https://www.pexels.com/license/
+memoir-01.jpg 機場・Hello Kitty 主題區
+memoir-02.jpg 京都・伏見稻荷
+memoir-03.jpg 夏威夷・鑽石山
+memoir-04.jpg 巴黎・Shakespeare and Company
+memoir-05.jpg 海上夕陽乾杯
+memoir-06.jpg 光影互動展
 
-檔案前綴 g01–g19 多數來自 Unsplash；g03、g11、g20、g21 來自 Pexels。
-下載日期：2026-07-06
+由使用者提供旅行合照，僅供本專案展示。

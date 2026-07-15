@@ -35,6 +35,7 @@ import { MedicationReminders } from "./MedicationReminders";
 import { TimeGallery } from "../shared/TimeGallery";
 import { AiCompanionWidget } from "./AiCompanionWidget";
 import { useLiveStreak, useTodaySummary } from "../../hooks/useLiveProgress";
+import { getAppNow } from "../../lib/appClock";
 import {
   getUnreadEncouragements,
   markEncouragementRead,
@@ -129,7 +130,7 @@ export function PatientHome() {
   const summary = useTodaySummary();
   const streakDays = useLiveStreak();
   const { total: totalExercises, completed: completedExercises, progressPct } = summary;
-  const now = useMemo(() => new Date(), []);
+  const now = useMemo(() => getAppNow(), []);
   const greeting = now.getHours() < 11 ? "早安" : now.getHours() < 18 ? "午安" : "晚安";
 
   useEffect(() => subscribeMedications(() => setMedProgress(getTodayMedProgress(DEFAULT_PATIENT_ID))), []);

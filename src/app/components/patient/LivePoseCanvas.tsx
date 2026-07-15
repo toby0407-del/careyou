@@ -25,6 +25,8 @@ interface LivePoseCanvasProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   keypoints: Keypoint[];
   visible: boolean;
+  /** 就緒階段可顯示人體外框；訓練中請關閉，避免偵測鎖定時突然跳出光圈 */
+  showPersonHalo?: boolean;
   personDetected?: boolean;
   highlightJoint?: string;
 }
@@ -33,6 +35,7 @@ export function LivePoseCanvas({
   videoRef,
   keypoints,
   visible,
+  showPersonHalo = false,
   personDetected = false,
   highlightJoint,
 }: LivePoseCanvasProps) {
@@ -83,7 +86,8 @@ export function LivePoseCanvas({
         screenPoints.push({ x, y });
       }
 
-      if (personDetected && screenPoints.length >= 5) {
+      // 僅就位階段顯示外框；訓練中只畫骨架，避免「突然跳出光圈」
+      if (showPersonHalo && personDetected && screenPoints.length >= 5) {
         const ellipse = computePersonScreenEllipse(screenPoints);
         if (ellipse) {
           ctx.save();
@@ -149,7 +153,7 @@ export function LivePoseCanvas({
     const observer = new ResizeObserver(draw);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [videoRef, keypoints, visible, personDetected, highlightJoint]);
+  }, [videoRef, keypoints, visible, showPersonHalo, personDetected, highlightJoint]);
 
   return (
     <canvas
