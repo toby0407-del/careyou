@@ -7,7 +7,11 @@ import {
   subscribePatientSpeechLang,
   type PatientSpeechLang,
 } from "./patientLanguage";
-import { isYatingTtsConfigured, synthesizeYatingTaiwanese } from "./yatingTts";
+import {
+  isYatingTtsConfigured,
+  synthesizeYatingSpeech,
+  type YatingVoiceModel,
+} from "./yatingTts";
 
 const VOICE_PREF_KEY = "rehabbridge_voice_enabled";
 
@@ -131,7 +135,12 @@ function speakBrowser(text: string, options: SpeakOptions = {}) {
   if (!voicesLoaded) pickVoice();
 }
 
-async function speakYating(text: string, interrupt: boolean) {
+function yatingModelForLang(lang: PatientSpeechLang): YatingVoiceModel {
+  // 台語 → tai_*；國語／華語 → zh_en_*（與小伴聊天朗讀共用）
+  return lang === "nan" ? "tai_female_1" : "zh_en_female_1";
+}
+
+async function speakYating(text: string, interrupt: boolean, lang: PatientSpeechLang) {
   const gen = interrupt ? ++speakGen : speakGen;
   if (interrupt) {
     stopYatingAudio();
@@ -139,7 +148,7 @@ async function speakYating(text: string, interrupt: boolean) {
   }
 
   try {
-    const url = await synthesizeYatingTaiwanese(text, { model: "tai_female_1" });
+    const url = await synthesizeYatingSpeech(text, { model: yatingModelForLang(lang) });
     if (gen !== speakGen) {
       URL.revokeObjectURL(url);
       return;
@@ -155,8 +164,7 @@ async function speakYating(text: string, interrupt: boolean) {
     };
     await audio.play();
   } catch (err) {
-    // 失敗時退回瀏覽器「國語」嗓會聽起來很怪；打清楚 log 方便排查 key / 主機
-    console.error("[yating-tts] 雅婷台語失敗，暫用瀏覽器語音（非台語音色）", err);
+    console.error("[yating-tts] 雅婷語音失敗，改用瀏覽器語音", err);
     speakBrowser(text, { interrupt: true });
   }
 }
@@ -168,15 +176,19 @@ export interface SpeakOptions {
   pitch?: number;
 }
 
-/** 朗讀文字：台語 → 雅婷 API；中文 → Web Speech */
+/**
+ * 朗讀文字：
+ * - 已設定雅婷 key／proxy → 國語與台語都走雅婷（小伴聊天回覆會被唸出）
+ * - 未設定 → 退回瀏覽器 Web Speech
+ */
 export function speak(text: string, options: SpeakOptions = {}) {
   const cleaned = text.trim();
   if (!cleaned) return;
   const { interrupt = false } = options;
   const lang = getPatientSpeechLang();
 
-  if (lang === "nan" && isYatingTtsConfigured()) {
-    void speakYating(cleaned, interrupt);
+  if (isYatingTtsConfigured()) {
+    void speakYating(cleaned, interrupt, lang);
     return;
   }
 

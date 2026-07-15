@@ -1,12 +1,21 @@
 /**
- * 雅婷（Yating）台語 TTS — REST v2 short speech
+ * 雅婷（Yating）TTS — REST v2 short speech
  * https://developer.yating.tw/doc/tts-TTS%20語音合成v2
  *
  * 開發環境走 Vite proxy（密鑰不進前端 bundle）；
- * 正式環境可設 VITE_YATING_TTS_KEY（會暴露於前端，僅適合展示）。
+ * 正式／Capacitor 可設 VITE_YATING_TTS_KEY（會暴露於前端，僅適合展示）。
  */
 
 const YATING_PROXY_PATH = "/api/yating-tts/v2/speeches/short";
+
+export type YatingVoiceModel =
+  | "tai_female_1"
+  | "tai_female_2"
+  | "tai_male_1"
+  | "zh_en_female_1"
+  | "zh_en_female_2"
+  | "zh_en_male_1"
+  | "zh_en_male_2";
 
 function getEndpoint(): string {
   const base = (import.meta.env.VITE_YATING_TTS_BASE_URL as string | undefined)?.replace(/\/$/, "");
@@ -20,9 +29,13 @@ function getClientKey(): string | undefined {
   return key?.trim() || undefined;
 }
 
+/** 本機 proxy 是否已載入 key（由 vite.config define 注入，不把 key 暴露給前端） */
+function isProxyReady(): boolean {
+  return import.meta.env.VITE_YATING_PROXY_READY === "true";
+}
+
 export function isYatingTtsConfigured(): boolean {
-  // proxy 開發模式或有前端 key 都視為可用
-  return Boolean(getClientKey()) || import.meta.env.DEV || Boolean(import.meta.env.VITE_YATING_TTS_PROXY);
+  return Boolean(getClientKey()) || isProxyReady() || import.meta.env.VITE_YATING_TTS_PROXY === "true";
 }
 
 /** 雅婷計字：中文／全形約算 2，半形／空白算 1；上限約 600 */
@@ -39,24 +52,28 @@ function clipForYating(text: string, maxUnits = 560): string {
   return out.trim();
 }
 
+function isTaiwaneseModel(model: YatingVoiceModel): boolean {
+  return model.startsWith("tai_");
+}
+
 export type YatingSpeakOptions = {
-  /** tai_female_1 = 雅婷台語 */
-  model?: "tai_female_1" | "tai_female_2" | "tai_male_1";
+  model?: YatingVoiceModel;
   speed?: number;
   pitch?: number;
   energy?: number;
 };
 
 /**
- * 合成台語音訊，回傳可播放的 object URL（呼叫端負責 revoke）。
+ * 合成音訊，回傳可播放的 object URL（呼叫端負責 revoke）。
  */
-export async function synthesizeYatingTaiwanese(
+export async function synthesizeYatingSpeech(
   text: string,
   options: YatingSpeakOptions = {}
 ): Promise<string> {
   const clipped = clipForYating(text);
   if (!clipped) throw new Error("沒有可朗讀的文字");
 
+  const model = options.model ?? "zh_en_female_1";
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
@@ -69,15 +86,15 @@ export async function synthesizeYatingTaiwanese(
     body: JSON.stringify({
       input: { text: clipped, type: "text" },
       voice: {
-        model: options.model ?? "tai_female_1",
+        model,
         speed: options.speed ?? 1,
         pitch: options.pitch ?? 1,
         energy: options.energy ?? 1,
       },
-      // 台語音色僅保證 16K；LINEAR16 為官方穩定格式（MP3 文件曾標「即將支援」）
+      // 台語音色僅保證 16K；國語可用 22K
       audioConfig: {
         encoding: "LINEAR16",
-        sampleRate: "16K",
+        sampleRate: isTaiwaneseModel(model) ? "16K" : "22K",
       },
     }),
   });
@@ -101,4 +118,12 @@ export async function synthesizeYatingTaiwanese(
       : "audio/wav";
   const blob = new Blob([bytes], { type: mime });
   return URL.createObjectURL(blob);
+}
+
+/** @deprecated 改用 synthesizeYatingSpeech；保留相容舊呼叫 */
+export async function synthesizeYatingTaiwanese(
+  text: string,
+  options: YatingSpeakOptions = {}
+): Promise<string> {
+  return synthesizeYatingSpeech(text, { ...options, model: options.model ?? "tai_female_1" });
 }

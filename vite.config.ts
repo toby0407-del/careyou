@@ -21,8 +21,9 @@ export default defineConfig(({ mode }) => {
   const yatingKey = (env.YATING_TTS_KEY || env.VITE_YATING_TTS_KEY || '').trim()
   /** 雅婷 TTS 正式主機（可用 .env 覆寫；必須是 tts.api.yating.tw） */
   const yatingTarget = (env.YATING_TTS_BASE_URL || 'https://tts.api.yating.tw').replace(/\/$/, '')
-  if (!yatingKey) {
-    console.warn('[yating-tts] 未設定 YATING_TTS_KEY，台語 TTS proxy 不會帶 key')
+  const proxyReady = Boolean(yatingKey)
+  if (!proxyReady) {
+    console.warn('[yating-tts] 未設定 YATING_TTS_KEY，小伴朗讀會改用瀏覽器語音（請建立 .env.local）')
   } else {
     console.info(`[yating-tts] proxy → ${yatingTarget} (key loaded, len=${yatingKey.length})`)
   }
@@ -42,6 +43,11 @@ export default defineConfig(({ mode }) => {
       },
     },
 
+    // 只暴露「proxy 是否有 key」，不把真實 key 打進前端 bundle
+    define: {
+      'import.meta.env.VITE_YATING_PROXY_READY': JSON.stringify(proxyReady ? 'true' : 'false'),
+    },
+
     // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
     assetsInclude: ['**/*.svg', '**/*.csv'],
 
@@ -58,7 +64,7 @@ export default defineConfig(({ mode }) => {
       port: 9555,
       strictPort: true,
       proxy: {
-        // 台語雅婷 TTS：密鑰只留在本機代理，不進瀏覽器
+        // 雅婷 TTS：密鑰只留在本機代理，不進瀏覽器（小伴聊天朗讀會走這裡）
         '/api/yating-tts': {
           target: yatingTarget,
           changeOrigin: true,
