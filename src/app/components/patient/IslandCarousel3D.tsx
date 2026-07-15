@@ -64,10 +64,18 @@ export function IslandCarousel3D() {
     [navigate]
   );
 
-  // ── 建立 / 重建 3D 場景（解鎖狀態改變時重建，維持目前聚焦） ──
+  // ── 建立 / 重建 3D 場景（解鎖狀態改變時重建，聚焦目前可挑戰關卡） ──
   useEffect(() => {
     const mount = mountRef.current;
     if (!mount || webglFailed) return;
+
+    // 通關返回後應停在新解鎖關卡，而非留在剛完成的島上
+    const focusIndex = Math.max(
+      0,
+      statusesRef.current.findIndex((s) => s === "active")
+    );
+    activeIndexRef.current = focusIndex;
+    setActiveIndex(focusIndex);
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const islands = exercisesRef.current.map((ex, i) => ({
@@ -79,7 +87,7 @@ export function IslandCarousel3D() {
     let handle: CarouselHandle;
     try {
       handle = createIslandCarousel(mount, islands, {
-        initialIndex: activeIndexRef.current,
+        initialIndex: focusIndex,
         reducedMotion,
         onActiveChange: (idx) => {
           activeIndexRef.current = idx;

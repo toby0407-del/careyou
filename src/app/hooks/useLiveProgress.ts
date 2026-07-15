@@ -18,17 +18,26 @@ let cachedDaily: DayResult[] | null = null;
 let cachedAnalytics: PatientAnalytics | null = null;
 let cachedAnalyticsPatientId: string | null = null;
 
+function invalidateCache() {
+  snapshotVersion += 1;
+  cachedExercises = null;
+  cachedSummary = null;
+  cachedStreak = null;
+  cachedDaily = null;
+  cachedAnalytics = null;
+  cachedAnalyticsPatientId = null;
+}
+
+/**
+ * 模組級訂閱：訓練頁（RehabExecution）完成時 PatientHome 可能已卸載，
+ * 若只在 hook subscribe 裡清快取，返回地圖會讀到舊的 completed／解鎖狀態。
+ */
+subscribeProgress(() => {
+  invalidateCache();
+});
+
 function subscribe(listener: () => void) {
-  return subscribeProgress(() => {
-    snapshotVersion += 1;
-    cachedExercises = null;
-    cachedSummary = null;
-    cachedStreak = null;
-    cachedDaily = null;
-    cachedAnalytics = null;
-    cachedAnalyticsPatientId = null;
-    listener();
-  });
+  return subscribeProgress(listener);
 }
 
 function getVersion() {

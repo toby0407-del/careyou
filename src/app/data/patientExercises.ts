@@ -236,10 +236,13 @@ export function getLevelStatus(
   return "active";
 }
 
-export function isExerciseUnlocked(id: string): boolean {
-  const index = allExercises.findIndex((e) => e.id === id);
+export function isExerciseUnlocked(
+  id: string,
+  list: Exercise[] = allExercises
+): boolean {
+  const index = list.findIndex((e) => e.id === id);
   if (index < 0) return false;
-  return getLevelStatus(allExercises[index], index) !== "locked";
+  return getLevelStatus(list[index], index, list) !== "locked";
 }
 
 export function getTodayPlanSummary() {

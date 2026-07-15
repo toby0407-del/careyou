@@ -120,8 +120,10 @@ export function RehabExecution() {
   const lastValidCountRef = useRef(0);
   const lastInvalidCountRef = useRef(0);
   const syncedCompleteRef = useRef(false);
+  const celebratedCompleteRef = useRef(false);
   const isPausedRef = useRef(isPaused);
   const currentSetRef = useRef(currentSet);
+  const elapsedSecondsRef = useRef(elapsedSeconds);
   const voiceEnabledRef = useRef(voiceEnabled);
   /** 跨組累計（品質評分用） */
   const totalValidRef = useRef(0);
@@ -137,9 +139,10 @@ export function RehabExecution() {
   useEffect(() => {
     isPausedRef.current = isPaused;
     currentSetRef.current = currentSet;
+    elapsedSecondsRef.current = elapsedSeconds;
     phaseRef.current = phase;
     voiceEnabledRef.current = voiceEnabled;
-  }, [isPaused, currentSet, phase, voiceEnabled]);
+  }, [isPaused, currentSet, elapsedSeconds, phase, voiceEnabled]);
 
   const speakIfOn = useCallback((text: string, interrupt = false) => {
     if (voiceEnabledRef.current) speak(text, { interrupt });
@@ -162,6 +165,8 @@ export function RehabExecution() {
     setElapsedSeconds(0);
     setShowComplete(false);
     setSessionResult(null);
+    syncedCompleteRef.current = false;
+    celebratedCompleteRef.current = false;
     setPhase("training");
     speakIfOn(
       L(
@@ -292,10 +297,31 @@ export function RehabExecution() {
           currentRepRef.current = 0;
           setCurrentRep(0);
           if (currentSetRef.current >= exercise.sets) {
+            // 同步寫入進度，避免關閉完成彈窗時 useEffect 尚未跑完導致下一關不解鎖
+            if (!syncedCompleteRef.current) {
+              syncedCompleteRef.current = true;
+              const valid = totalValidRef.current;
+              const invalid = totalInvalidRef.current;
+              const attempts = Math.max(1, valid + invalid);
+              const quality = Math.max(55, Math.min(100, Math.round((valid / attempts) * 100)));
+              const stars: 1 | 2 | 3 = quality >= 90 ? 3 : quality >= 75 ? 2 : 1;
+              setSessionResult({ stars, quality });
+              recordSessionComplete({
+                exerciseId: exercise.id,
+                exerciseName: exercise.name,
+                stars,
+                quality,
+                validReps: valid,
+                invalidReps: invalid,
+                durationSec: elapsedSecondsRef.current,
+              });
+            }
             setShowComplete(true);
           } else {
             const finishedSet = currentSetRef.current;
-            setCurrentSet(finishedSet + 1);
+            const nextSet = finishedSet + 1;
+            currentSetRef.current = nextSet;
+            setCurrentSet(nextSet);
             repTrackerRef.current = createRepTracker();
             lastValidCountRef.current = 0;
             lastInvalidCountRef.current = 0;
@@ -337,35 +363,20 @@ export function RehabExecution() {
     return () => clearInterval(timer);
   }, [phase, cameraState, isPaused]);
 
-  // 訓練完成 — 品質評分、寫入進度（解鎖下一關）、同步時光迴廊、慶祝
+  // 訓練完成慶祝 — 進度已在通關當下同步寫入；此處只做迴廊／相簿／彩帶／語音
   useEffect(() => {
-    if (!showComplete || syncedCompleteRef.current) return;
-    syncedCompleteRef.current = true;
+    if (!showComplete || !sessionResult || celebratedCompleteRef.current) return;
+    celebratedCompleteRef.current = true;
 
     const valid = totalValidRef.current;
-    const invalid = totalInvalidRef.current;
-    const attempts = Math.max(1, valid + invalid);
-    // 品質 = 標準動作比例（保底 55，滿分 100）
-    const quality = Math.max(55, Math.min(100, Math.round((valid / attempts) * 100)));
-    const stars: 1 | 2 | 3 = quality >= 90 ? 3 : quality >= 75 ? 2 : 1;
-    setSessionResult({ stars, quality });
-
-    // 進度寫入 → 關卡解鎖 / 月曆 / 里程碑 / 家屬端同步
-    recordSessionComplete({
-      exerciseId: exercise.id,
-      exerciseName: exercise.name,
-      stars,
-      quality,
-      validReps: valid,
-      invalidReps: invalid,
-      durationSec: elapsedSeconds,
-    });
-
+    const { stars, quality } = sessionResult;
+    const durationSec = elapsedSecondsRef.current;
     const today = new Date().toISOString().slice(0, 10);
+
     appendCorridorEvent({
       date: today,
       title: `完成 ${exercise.name}`,
-      description: `關卡 ${exercise.level} 通關，標準動作 ${valid} 次，動作品質 ${quality} 分，用時 ${Math.max(1, Math.floor(elapsedSeconds / 60))} 分鐘。`,
+      description: `關卡 ${exercise.level} 通關，標準動作 ${valid} 次，動作品質 ${quality} 分，用時 ${Math.max(1, Math.floor(durationSec / 60))} 分鐘。`,
       type: "training",
       exerciseName: exercise.name,
       quality,
@@ -384,7 +395,6 @@ export function RehabExecution() {
       tags: [exercise.name, "通關"],
     });
 
-    // 彩帶慶祝（尊重 reduced-motion）
     confetti({
       particleCount: 140,
       spread: 80,
@@ -419,7 +429,7 @@ export function RehabExecution() {
       ),
       true
     );
-  }, [showComplete, exercise, elapsedSeconds, speakIfOn]);
+  }, [showComplete, sessionResult, exercise, speakIfOn]);
 
   // 語音鼓勵 — 視覺提示 + 真實 TTS 朗讀
   useEffect(() => {
