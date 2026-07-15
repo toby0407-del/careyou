@@ -129,12 +129,12 @@ const PATIENTS: Patient[] = [
     age: 65,
     diagnosis: "膝關節置換術後",
     phase: "第二期復健",
-    compliance: 87,
+    compliance: 76,
     trend: "up",
     status: "良好",
     lastSession: "2小時前",
     nextAppt: formatShiftedMonthDayTime("2026-07-18T14:00:00"),
-    progress: [60, 68, 72, 75, 80, 85, 87],
+    progress: [60, 68, 72, 75, 70, 74, 76],
     assignedExerciseIds: ["long-arc-quad", "tke", "sit-to-stand", "seated-dorsiflexion"],
   },
   {
@@ -783,10 +783,22 @@ function PatientDetailDialog({
     >
       {patient && analytics && (
         <DialogContent
-          className="portal-large-text sm:max-w-[1120px] rounded-3xl border-sky-100 p-0 overflow-hidden gap-0 [&_[data-slot=dialog-close]:focus-visible]:outline-none [&_[data-slot=dialog-close]:focus-visible]:outline-offset-0"
+          showCloseButton={false}
+          className="portal-large-text sm:max-w-[1120px] rounded-3xl border-sky-100 p-0 overflow-hidden gap-0 top-[8%] translate-y-0 max-h-[88vh]"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <div className="bg-gradient-to-r from-sky-500 to-blue-500 px-6 py-5 text-white [&_button:focus]:outline-none [&_button:focus-visible]:outline-none [&_button:focus-visible]:outline-offset-0">
+          <div className="relative bg-gradient-to-r from-sky-500 to-blue-500 px-5 py-3.5 pr-16 text-white [&_button:focus]:outline-none [&_button:focus-visible]:outline-none [&_button:focus-visible]:outline-offset-0">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab("visual");
+                onClose();
+              }}
+              className="absolute top-2.5 right-2.5 z-20 w-10 h-10 rounded-xl bg-white/25 hover:bg-white/40 border border-white/40 flex items-center justify-center shadow-sm"
+              aria-label="關閉"
+            >
+              <X className="w-5 h-5 text-white" strokeWidth={2.5} />
+            </button>
             <DialogHeader className="text-left">
               <DialogTitle className="sr-only">{patient.name} 病患詳情</DialogTitle>
               <DialogDescription className="sr-only">
@@ -798,19 +810,16 @@ function PatientDetailDialog({
                 className="flex items-center gap-3 w-full text-left rounded-xl hover:bg-white/10 outline-none focus:outline-none focus-visible:outline-none focus-visible:outline-offset-0 focus-visible:ring-0 transition-colors p-1 -m-1"
                 aria-label="查看個人資料"
               >
-                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
                   <span className="text-white text-lg" style={{ fontWeight: 700 }}>
                     {patient.name[0]}
                   </span>
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-2xl text-white truncate" style={{ fontWeight: 800 }}>
+                  <h2 className="text-xl text-white truncate" style={{ fontWeight: 800 }}>
                     {patient.name}
                   </h2>
-                  <p className="text-sky-50 text-sm mt-0.5">
-                    {patient.age} 歲 · {patient.diagnosis}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex items-center gap-2 mt-1">
                     <span className="inline-block px-2 py-0.5 rounded-md text-sm border border-white/20 bg-white/10 text-white">
                       {patient.status}
                     </span>
@@ -820,7 +829,7 @@ function PatientDetailDialog({
               </button>
             </DialogHeader>
 
-            <div className="flex bg-white/15 rounded-2xl p-1 mt-4 w-fit">
+            <div className="flex bg-white/15 rounded-2xl p-1 mt-3 w-fit">
               {DETAIL_TABS.map((tab) => {
                 const Icon = tab.icon;
                 const active = activeTab === tab.id;
@@ -844,7 +853,7 @@ function PatientDetailDialog({
             </div>
           </div>
 
-          <div className="px-6 py-5 max-h-[78vh] overflow-y-auto">
+          <div className="px-6 py-4 max-h-[calc(88vh-9rem)] overflow-y-auto">
             {activeTab === "visual" ? (
               <div className="space-y-5" key={`visual-${patient.id}`}>
                 <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
@@ -1273,29 +1282,62 @@ export function DoctorPortal() {
     .filter(Boolean)
     .join(" / ");
 
-  const filtered = patients.filter((p) => {
-    const profile = getPatientProfile(p.id);
-    const matchSearch =
-      p.name.includes(search) || p.diagnosis.includes(search);
-    const matchFilter = filter === "全部" || p.status === filter;
-    const matchGender = genderFilter === "全部" || profile?.gender === genderFilter;
-    const matchAge =
-      ageFilter === "全部" ||
-      (ageFilter === "40-59" && p.age >= 40 && p.age <= 59) ||
-      (ageFilter === "60-69" && p.age >= 60 && p.age <= 69) ||
-      (ageFilter === "70+" && p.age >= 70);
-    const matchDepartment =
-      departmentFilter.length === 0 ||
-      (profile?.department ? departmentFilter.includes(profile.department) : false);
-    return matchSearch && matchFilter && matchGender && matchAge && matchDepartment;
-  });
+  const filtered = useMemo(() => {
+    const statusRank: Record<Patient["status"], number> = {
+      緊急: 0,
+      注意: 1,
+      良好: 2,
+    };
+
+    const displayCompliance = (p: Patient) =>
+      p.id === DEFAULT_PATIENT_ID
+        ? getAnalyticsKpiValue(syncedAnalytics, "整體遵從") || p.compliance
+        : p.compliance;
+
+    return patients
+      .filter((p) => {
+        const profile = getPatientProfile(p.id);
+        const matchSearch = p.name.includes(search) || p.diagnosis.includes(search);
+        const matchFilter = filter === "全部" || p.status === filter;
+        const matchGender = genderFilter === "全部" || profile?.gender === genderFilter;
+        const matchAge =
+          ageFilter === "全部" ||
+          (ageFilter === "40-59" && p.age >= 40 && p.age <= 59) ||
+          (ageFilter === "60-69" && p.age >= 60 && p.age <= 69) ||
+          (ageFilter === "70+" && p.age >= 70);
+        const matchDepartment =
+          departmentFilter.length === 0 ||
+          (profile?.department ? departmentFilter.includes(profile.department) : false);
+        return matchSearch && matchFilter && matchGender && matchAge && matchDepartment;
+      })
+      .sort((a, b) => {
+        const byStatus = statusRank[a.status] - statusRank[b.status];
+        if (byStatus !== 0) return byStatus;
+        // Same status: lower compliance first so clinicians see lagging patients sooner
+        return displayCompliance(a) - displayCompliance(b);
+      });
+  }, [
+    patients,
+    search,
+    filter,
+    genderFilter,
+    ageFilter,
+    departmentFilter,
+    syncedAnalytics,
+  ]);
 
   const stats = {
     total: patients.length,
     good: patients.filter((p) => p.status === "良好").length,
     attention: patients.filter((p) => p.status === "注意").length,
     avgCompliance: Math.round(
-      patients.reduce((s, p) => s + p.compliance, 0) / patients.length
+      patients.reduce((s, p) => {
+        const value =
+          p.id === DEFAULT_PATIENT_ID
+            ? getAnalyticsKpiValue(syncedAnalytics, "整體遵從") || p.compliance
+            : p.compliance;
+        return s + value;
+      }, 0) / patients.length
     ),
   };
   const filterCounts = {

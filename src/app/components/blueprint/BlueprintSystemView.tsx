@@ -12,10 +12,11 @@ import { Block, BlockLayer, BlockRow, BlockGrid } from "./BlueprintBlocks";
 
 const TECH_STACK = [
   { layer: "Frontend", color: "#6366f1", items: ["React 18", "TS", "Tailwind", "Motion"] },
+  { layer: "UI·對話框", color: "#38bdf8", items: ["Radix Dialog", "醫師 Modal", "個人資料"] },
   { layer: "ML", color: "#8b5cf6", items: ["TF.js", "BlazePose", "MoveNet", "WebGL"] },
-  { layer: "AI·語音", color: "#a78bfa", items: ["小伴本機", "Speech API", "TTS"] },
-  { layer: "資料", color: "#0d9488", items: ["progressStore", "careChat", "Reveal"] },
-  { layer: "圖表", color: "#f43f5e", items: ["Recharts", "Router", "Toast"] },
+  { layer: "AI·語音", color: "#a78bfa", items: ["小伴本機", "Yating TTS", "Speech"] },
+  { layer: "資料", color: "#0d9488", items: ["progressStore", "careChat", "analytics"] },
+  { layer: "圖表·平台", color: "#f43f5e", items: ["Recharts", "Router", "Capacitor iOS"] },
 ];
 
 const USER_FLOWS = [
@@ -32,7 +33,7 @@ const USER_FLOWS = [
   {
     role: "醫師",
     color: "#38bdf8",
-    steps: ["選病患", "訊息", "處方", "分析", "迴廊", "提醒"],
+    steps: ["列表", "詳情Modal", "可視數據", "調整數據", "處方", "提醒"],
   },
 ];
 
@@ -57,15 +58,15 @@ const FEATURES = [
   { label: "照護訊息", sub: "一對一", icon: MessageCircle, color: "#ec4899" },
   { label: "小伴 AI", sub: "離線", icon: Sparkles, color: "#a78bfa" },
   { label: "時光迴廊", sub: "6 張", icon: Images, color: "#8b5cf6" },
-  { label: "今日完成", sub: "三端", icon: Zap, color: "#10b981" },
+  { label: "醫師詳情", sub: "中央 Modal", icon: Zap, color: "#38bdf8" },
 ];
 
 const PAGES = [
   { path: "/", label: "入口", desc: "四角色", color: "#8b5cf6" },
   { path: "/patient", label: "患者", desc: "地圖·訊息", color: "#0d9488" },
   { path: "/patient/rehab/:id", label: "復健", desc: "鏡頭", color: "#10b981" },
-  { path: "/family", label: "家屬", desc: "迴廊·訊息", color: "#f43f5e" },
-  { path: "/doctor", label: "醫師", desc: "處方·訊息", color: "#38bdf8" },
+  { path: "/family", label: "家屬", desc: "總覽·迴廊", color: "#f43f5e" },
+  { path: "/doctor", label: "醫師", desc: "Modal·處方", color: "#38bdf8" },
   { path: "/blueprint", label: "藍圖", desc: "此頁", color: "#7c3aed" },
 ];
 

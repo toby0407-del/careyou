@@ -151,7 +151,7 @@ export function FamilyDashboard() {
     <div className="portal-large-text rehab-app-shell bg-gradient-to-br from-rose-50/40 via-stone-50 to-sky-50/30 overflow-hidden flex flex-col">
       <header className="flex-shrink-0 bg-white/80 backdrop-blur-md border-b border-rose-100/80 shadow-sm">
         {/* Row 1 — 病患資訊與快捷狀態 */}
-        <div className="px-6 py-3 border-b border-rose-50">
+        <div className="px-6 pt-4 pb-3 border-b border-rose-50">
           <div className="rehab-content flex items-center justify-between gap-6">
             <div className="flex items-center gap-4 min-w-0">
               <button
@@ -183,9 +183,6 @@ export function FamilyDashboard() {
                     家屬監護中
                   </span>
                 </div>
-                <p className="text-slate-500 text-sm mt-0.5 truncate">
-                  {patientProfile.age} 歲 · {patientProfile.diagnosis} · {patientProfile.rehabPhase}
-                </p>
                 <p className="text-rose-400 text-[10px] mt-0.5">點選查看患者資料</p>
               </button>
             </div>

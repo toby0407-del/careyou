@@ -22,8 +22,21 @@ const LAYERS = [
       { label: "患者首頁", sub: "地圖·小伴·迴廊", color: "#0d9488" },
       { label: "復健執行", sub: "鏡頭·舉手·TTS", color: "#14b8a6" },
       { label: "家屬端", sub: "總覽·迴廊·訊息", color: "#f43f5e" },
-      { label: "醫師後台", sub: "處方·訊息·分析", color: "#38bdf8" },
+      { label: "醫師後台", sub: "列表·Modal·處方", color: "#38bdf8" },
       { label: "照護訊息", sub: "一對一私訊", color: "#ec4899" },
+    ],
+  },
+  {
+    title: "醫師詳情 Modal",
+    subtitle: "中央對話框 · 可視 / 調整",
+    color: "#38bdf8",
+    blocks: [
+      { label: "病患列表", sub: "人偶·部位數", color: "#0ea5e9" },
+      { label: "優先排序", sub: "狀態·依從率", color: "#0284c7" },
+      { label: "可視數據", sub: "圖表總覽", color: "#38bdf8" },
+      { label: "調整數據", sub: "參數·處方", color: "#0369a1" },
+      { label: "個人資料", sub: "巢狀 Dialog", color: "#7dd3fc" },
+      { label: "提醒通知", sub: "頻率·條件", color: "#67e8f9" },
     ],
   },
   {
@@ -41,10 +54,11 @@ const LAYERS = [
   },
   {
     title: "資料層",
-    subtitle: "progressStore · localStorage",
+    subtitle: "progressStore · analytics · localStorage",
     color: "#f59e0b",
     blocks: [
       { label: "progressStore", sub: "統一進度", color: "#0d9488" },
+      { label: "patientAnalytics", sub: "依從·品質", color: "#38bdf8" },
       { label: "careChat", sub: "照護私訊 v2", color: "#ec4899" },
       { label: "timeGallery", sub: "照片牆", color: "#14b8a6" },
       { label: "dailyReveal", sub: "每日 6 張", color: "#8b5cf6" },
@@ -56,10 +70,10 @@ const LAYERS = [
     subtitle: "執行環境",
     color: "#6366f1",
     blocks: [
-      { label: "React + TS", sub: "Vite 5200", color: "#6366f1" },
+      { label: "React + TS", sub: "Vite", color: "#6366f1" },
       { label: "TensorFlow.js", sub: "WebGL/CPU", color: "#8b5cf6" },
-      { label: "Router", sub: "SPA", color: "#a78bfa" },
-      { label: "Capacitor", sub: "iOS 備援", color: "#f59e0b" },
+      { label: "Radix Dialog", sub: "巢狀 Modal", color: "#38bdf8" },
+      { label: "Capacitor", sub: "iPad / iOS", color: "#f59e0b" },
     ],
   },
 ];
@@ -78,7 +92,7 @@ const SYNC = [
   { from: "通關解鎖", to: "時光迴廊", color: "#8b5cf6" },
   { from: "照護訊息", to: "三端同步", color: "#ec4899" },
   { from: "家人打氣", to: "小伴 AI", color: "#f43f5e" },
-  { from: "醫師設患者", to: "三端同步", color: "#38bdf8" },
+  { from: "醫師調整參數", to: "患者端展示", color: "#38bdf8" },
 ];
 
 export function SystemBlockDiagram() {
@@ -90,7 +104,9 @@ export function SystemBlockDiagram() {
           <p className="text-violet-950 text-[11px]" style={{ fontWeight: 800 }}>
             {getAppDisplayName()} 系統架構方塊圖
           </p>
-          <p className="text-violet-600/70 text-[9px]">分層模組 · 照護訊息 · 今日完成率 · 跨端同步</p>
+          <p className="text-violet-600/70 text-[9px]">
+            分層模組 · 醫師中央 Modal · 照護訊息 · 跨端同步 · iPad
+          </p>
         </div>
       </div>
 

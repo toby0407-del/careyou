@@ -113,7 +113,8 @@ export function PatientProfileDialog({
       }}
     >
       <DialogContent
-        className="max-w-lg rounded-2xl border-0 p-0 overflow-hidden gap-0 sm:max-w-lg [&_[data-slot=dialog-close]]:hidden"
+        showCloseButton={false}
+        className="max-w-lg rounded-2xl border-0 p-0 overflow-hidden gap-0 sm:max-w-lg"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogTitle className="sr-only">{profile.name} 個人資料</DialogTitle>

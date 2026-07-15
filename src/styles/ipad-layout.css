@@ -50,7 +50,7 @@
   overflow: hidden;
   box-sizing: border-box;
   /* 整體下移，避開 iPad 狀態列（時間、星期、日期） */
-  padding-top: max(28px, var(--rehab-safe-top));
+  padding-top: max(36px, calc(var(--rehab-safe-top) + 8px));
   padding-bottom: var(--rehab-safe-bottom);
 }
 
