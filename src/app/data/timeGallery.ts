@@ -23,10 +23,10 @@ export const galleryCategories: { id: GalleryCategory; label: string; emoji: str
   { id: "progress", label: "進步對比", emoji: "📈" },
 ];
 
-const G = (file: string) => `/assets/gallery/${file}?v=2`;
+const G = (file: string) => `/assets/gallery/${file}?v=5`;
 
 /**
- * 時光迴廊回憶錄 — 旅行友情合照
+ * 時光迴廊回憶錄 — 旅行友情合照（打亂後固定順序）
  * 順序對應今日關卡解鎖牆：完成第 N 關解鎖前 N 張
  */
 export const BASE_GALLERY_PHOTOS: GalleryPhoto[] = [
@@ -34,21 +34,21 @@ export const BASE_GALLERY_PHOTOS: GalleryPhoto[] = [
     id: "m1",
     category: "celebration",
     date: "2026-07-15",
-    title: "粉紅機場合影",
-    caption: "Hello Kitty 粉紅牆前五人自拍，旅途開始前先把笑容存起來。",
-    location: "機場・Hello Kitty 主題區",
+    title: "市集找燈籠",
+    caption: "在五顏六色的巷弄裡挑燈籠、比地毯，笑容比陽光還亮。",
+    location: "市集・巷弄",
     imageUrl: G("memoir-01.jpg"),
-    tags: ["機場", "友情", "自拍"],
+    tags: ["市集", "旅行", "友情"],
   },
   {
     id: "m2",
     category: "celebration",
     date: "2026-07-14",
-    title: "伏見稻荷的友情",
-    caption: "穿過朱紅色鳥居，和夥伴們拍下這張，提醒自己復健路也要一步一步走。",
-    location: "京都・伏見稻荷大社",
+    title: "海上乾杯",
+    caption: "金色夕陽裡對瓶乾杯，慶祝彼此都勇敢出發。",
+    location: "海上・夕陽船",
     imageUrl: G("memoir-02.jpg"),
-    tags: ["京都", "友情", "旅行"],
+    tags: ["夕陽", "干杯", "友情"],
   },
   {
     id: "m3",
@@ -72,23 +72,23 @@ export const BASE_GALLERY_PHOTOS: GalleryPhoto[] = [
   },
   {
     id: "m5",
-    category: "celebration",
-    date: "2026-07-11",
-    title: "海上乾杯",
-    caption: "金色夕陽裡對瓶乾杯，慶祝彼此都勇敢出發。",
-    location: "海上・夕陽船",
-    imageUrl: G("memoir-05.jpg"),
-    tags: ["夕陽", "干杯", "友情"],
-  },
-  {
-    id: "m6",
     category: "progress",
-    date: "2026-07-10",
+    date: "2026-07-11",
     title: "光之森林",
     caption: "踩進水面與光點之間，像走進一幅畫，療癒滿滿。",
     location: "互動光影展",
-    imageUrl: G("memoir-06.jpg"),
+    imageUrl: G("memoir-05.jpg"),
     tags: ["光影", "藝術", "療癒"],
+  },
+  {
+    id: "m6",
+    category: "celebration",
+    date: "2026-07-10",
+    title: "粉紅機場合影",
+    caption: "Hello Kitty 粉紅牆前五人自拍，旅途開始前先把笑容存起來。",
+    location: "機場・Hello Kitty 主題區",
+    imageUrl: G("memoir-06.jpg"),
+    tags: ["機場", "友情", "自拍"],
   },
 ].map((photo) => ({
   ...photo,
