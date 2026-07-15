@@ -69,21 +69,21 @@ export function ExercisePlanEditor({ patientId, patientName }: ExercisePlanEdito
           個人化訓練參數
         </h3>
       </div>
-      <p className="text-slate-500 text-[10px] mb-2 leading-relaxed">
+      <p className="text-slate-500 text-sm mb-2 leading-relaxed">
         依 {patientName} 狀況調整組數、次數與目標角度，患者端將同步顯示。
       </p>
 
-      <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+      <div className="space-y-2 max-h-[320px] overflow-y-auto pr-1">
         {allExercises.map((ex) => {
           const plan = draft[ex.id];
           if (!plan) return null;
           return (
-            <div key={ex.id} className="rounded-lg border border-slate-200 bg-white p-2">
-              <p className="text-slate-800 text-xs mb-1.5" style={{ fontWeight: 600 }}>
+            <div key={ex.id} className="rounded-lg border border-slate-200 bg-white p-2.5">
+              <p className="text-slate-800 text-sm mb-1.5" style={{ fontWeight: 600 }}>
                 {ex.name}
               </p>
               <div className="grid grid-cols-3 gap-1.5">
-                <label className="text-[10px] text-slate-500">
+                <label className="text-sm text-slate-500">
                   組數
                   <input
                     type="number"
@@ -91,10 +91,10 @@ export function ExercisePlanEditor({ patientId, patientName }: ExercisePlanEdito
                     max={10}
                     value={plan.sets}
                     onChange={(e) => update(ex.id, { sets: Number(e.target.value) || 1 })}
-                    className="mt-0.5 w-full rounded-md border border-slate-200 px-1.5 py-1 text-xs text-slate-800"
+                    className="mt-0.5 w-full rounded-md border border-slate-200 px-1.5 py-1 text-sm text-slate-800"
                   />
                 </label>
-                <label className="text-[10px] text-slate-500">
+                <label className="text-sm text-slate-500">
                   每組次數
                   <input
                     type="number"
@@ -102,10 +102,10 @@ export function ExercisePlanEditor({ patientId, patientName }: ExercisePlanEdito
                     max={50}
                     value={plan.repsPerSet}
                     onChange={(e) => update(ex.id, { repsPerSet: Number(e.target.value) || 1 })}
-                    className="mt-0.5 w-full rounded-md border border-slate-200 px-1.5 py-1 text-xs text-slate-800"
+                    className="mt-0.5 w-full rounded-md border border-slate-200 px-1.5 py-1 text-sm text-slate-800"
                   />
                 </label>
-                <label className="text-[10px] text-slate-500">
+                <label className="text-sm text-slate-500">
                   容許誤差°
                   <input
                     type="number"
@@ -113,10 +113,10 @@ export function ExercisePlanEditor({ patientId, patientName }: ExercisePlanEdito
                     max={30}
                     value={plan.tolerance}
                     onChange={(e) => update(ex.id, { tolerance: Number(e.target.value) || 10 })}
-                    className="mt-0.5 w-full rounded-md border border-slate-200 px-1.5 py-1 text-xs text-slate-800"
+                    className="mt-0.5 w-full rounded-md border border-slate-200 px-1.5 py-1 text-sm text-slate-800"
                   />
                 </label>
-                <label className="text-[10px] text-slate-500">
+                <label className="text-sm text-slate-500">
                   屈曲角度°
                   <input
                     type="number"
@@ -124,10 +124,10 @@ export function ExercisePlanEditor({ patientId, patientName }: ExercisePlanEdito
                     max={180}
                     value={plan.flexedAngle}
                     onChange={(e) => update(ex.id, { flexedAngle: Number(e.target.value) || 0 })}
-                    className="mt-0.5 w-full rounded-md border border-slate-200 px-1.5 py-1 text-xs text-slate-800"
+                    className="mt-0.5 w-full rounded-md border border-slate-200 px-1.5 py-1 text-sm text-slate-800"
                   />
                 </label>
-                <label className="text-[10px] text-slate-500 col-span-2">
+                <label className="text-sm text-slate-500 col-span-2">
                   伸直角度°
                   <input
                     type="number"
@@ -135,11 +135,11 @@ export function ExercisePlanEditor({ patientId, patientName }: ExercisePlanEdito
                     max={180}
                     value={plan.extendedAngle}
                     onChange={(e) => update(ex.id, { extendedAngle: Number(e.target.value) || 0 })}
-                    className="mt-0.5 w-full rounded-md border border-slate-200 px-1.5 py-1 text-xs text-slate-800"
+                    className="mt-0.5 w-full rounded-md border border-slate-200 px-1.5 py-1 text-sm text-slate-800"
                   />
                 </label>
               </div>
-              <p className="text-sky-600 text-[9px] mt-1">
+              <p className="text-sky-600 text-sm mt-1">
                 {formatSetsReps(plan)} · {formatAngleRange(plan)}
               </p>
             </div>
@@ -151,9 +151,9 @@ export function ExercisePlanEditor({ patientId, patientName }: ExercisePlanEdito
         type="button"
         onClick={handleSave}
         disabled={!hasChanges && !saved}
-        className="mt-2 w-full py-2 rounded-lg bg-sky-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50"
+        className="mt-2 w-full py-2.5 rounded-lg bg-sky-500 text-white text-sm font-semibold flex items-center justify-center gap-1.5 disabled:opacity-50"
       >
-        <Save className="w-3.5 h-3.5" />
+        <Save className="w-4 h-4" />
         {saved ? "已儲存" : hasChanges ? "儲存個人化參數" : "參數已是最新"}
       </button>
     </div>

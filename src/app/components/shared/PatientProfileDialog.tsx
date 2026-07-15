@@ -1,4 +1,3 @@
-import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import {
   X,
@@ -18,6 +17,13 @@ import {
   patientSpeechLangLabel,
   subscribePatientSpeechLang,
 } from "../../lib/patientLanguage";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "../ui/dialog";
 
 type ProfileVariant = "family" | "doctor" | "patient";
 
@@ -97,26 +103,22 @@ export function PatientProfileDialog({
     return subscribePatientSpeechLang(setSpeechLang);
   }, [variant]);
 
-  if (!open) return null;
-
   const bmi = (profile.weightKg / (profile.heightCm / 100) ** 2).toFixed(1);
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
     >
-      <motion.div
-        initial={{ scale: 0.92, y: 16 }}
-        animate={{ scale: 1, y: 0 }}
-        exit={{ scale: 0.92, y: 16 }}
-        transition={{ type: "spring", damping: 26, stiffness: 320 }}
-        className="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
+      <DialogContent
+        className="max-w-lg rounded-2xl border-0 p-0 overflow-hidden gap-0 sm:max-w-lg [&_[data-slot=dialog-close]]:hidden"
+        onOpenAutoFocus={(e) => e.preventDefault()}
       >
+        <DialogTitle className="sr-only">{profile.name} 個人資料</DialogTitle>
+        <DialogDescription className="sr-only">病患基本資料與聯絡資訊</DialogDescription>
+
         <div className={`bg-gradient-to-r ${theme.gradient} px-5 py-4 flex items-start justify-between`}>
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 rounded-2xl bg-white/25 flex items-center justify-center border border-white/30 shadow-sm">
@@ -134,14 +136,15 @@ export function PatientProfileDialog({
               <p className="text-white/70 text-xs mt-1">病歷號 {profile.medicalRecordNo}</p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-9 h-9 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0"
-            aria-label="關閉"
-          >
-            <X className="w-5 h-5 text-white" />
-          </button>
+          <DialogClose asChild>
+            <button
+              type="button"
+              className="w-9 h-9 rounded-xl bg-white/20 hover:bg-white/30 flex items-center justify-center flex-shrink-0"
+              aria-label="關閉"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+          </DialogClose>
         </div>
 
         <div className="px-5 py-4 max-h-[60vh] overflow-y-auto">
@@ -209,17 +212,18 @@ export function PatientProfileDialog({
         </div>
 
         <div className="px-5 py-3 border-t border-slate-100 bg-slate-50">
-          <button
-            type="button"
-            onClick={onClose}
-            className={`w-full py-2.5 rounded-xl ${theme.accentSoft} ${theme.accent} border ${theme.accentBorder} text-sm hover:opacity-90 transition-opacity`}
-            style={{ fontWeight: 600 }}
-          >
-            關閉
-          </button>
+          <DialogClose asChild>
+            <button
+              type="button"
+              className={`w-full py-2.5 rounded-xl ${theme.accentSoft} ${theme.accent} border ${theme.accentBorder} text-sm hover:opacity-90 transition-opacity`}
+              style={{ fontWeight: 600 }}
+            >
+              關閉
+            </button>
+          </DialogClose>
         </div>
-      </motion.div>
-    </motion.div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

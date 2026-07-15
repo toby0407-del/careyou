@@ -16,7 +16,6 @@ import {
   CheckCircle2,
   Clock,
   AlertCircle,
-  BarChart3,
   ClipboardList,
   Users,
   Activity,
@@ -26,18 +25,9 @@ import {
   Trash2,
   ShoppingCart,
   MonitorSmartphone,
+  Eye,
+  SlidersHorizontal,
 } from "lucide-react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-} from "recharts";
 import { ChatWidget } from "../shared/ChatWidget";
 import { NotificationBell } from "../shared/NotificationBell";
 import { PatientProfileDialog } from "../shared/PatientProfileDialog";
@@ -115,6 +105,21 @@ function exercisesForPatient(ids: string[]): PrescriptionExercise[] {
 
 function regionsForPatient(ids: string[]): BodyRegion[] {
   return Array.from(new Set(exercisesForPatient(ids).map((ex) => ex.region)));
+}
+
+function regionCountsForPatient(
+  ids: string[]
+): { region: BodyRegion; label: string; count: number; color: string }[] {
+  const counts = new Map<BodyRegion, number>();
+  for (const ex of exercisesForPatient(ids)) {
+    counts.set(ex.region, (counts.get(ex.region) ?? 0) + 1);
+  }
+  return Array.from(counts.entries()).map(([region, count]) => ({
+    region,
+    label: BODY_REGION_LABELS[region],
+    count,
+    color: REGION_COLORS[region],
+  }));
 }
 
 const PATIENTS: Patient[] = [
@@ -219,31 +224,27 @@ const TREND_COLORS: Record<string, string> = {
   flat: "text-slate-400",
 };
 
-const PREVIEW_EXERCISE_COUNT = 3;
-
 function stopCardClick(e: React.MouseEvent | React.PointerEvent) {
   e.stopPropagation();
 }
 
 function AssignedExerciseList({
   exercises,
-  dense = false,
 }: {
   exercises: PrescriptionExercise[];
-  dense?: boolean;
 }) {
   return (
-    <ul className={dense ? "space-y-1" : "space-y-0.5"}>
+    <ul className="flex flex-col gap-0">
       {exercises.map((ex) => (
         <li
           key={ex.id}
-          className={`${dense ? "text-sm" : "text-xs"} text-slate-700 flex items-start gap-1.5 leading-snug`}
+          className="text-sm leading-5 h-5 text-slate-700 flex items-center gap-1.5"
         >
           <span
-            className="w-2 h-2 rounded-full flex-shrink-0 mt-1"
+            className="w-2 h-2 rounded-full flex-shrink-0"
             style={{ backgroundColor: REGION_COLORS[ex.region] }}
           />
-          <span className="min-w-0 break-words">{ex.name}</span>
+          <span className="min-w-0 truncate leading-5">{ex.name}</span>
         </li>
       ))}
     </ul>
@@ -253,60 +254,29 @@ function AssignedExerciseList({
 function PatientAssignedPreview({ patient, embedded = false }: { patient: Patient; embedded?: boolean }) {
   const exercises = exercisesForPatient(patient.assignedExerciseIds);
   const regions = regionsForPatient(patient.assignedExerciseIds);
-  const visible = exercises.slice(0, PREVIEW_EXERCISE_COUNT);
-  const hiddenCount = Math.max(0, exercises.length - PREVIEW_EXERCISE_COUNT);
 
   return (
     <div
       className={
         embedded
-          ? "flex gap-2 min-h-[96px] max-h-[96px] overflow-hidden"
-          : "mt-2 pt-2 border-t border-slate-100 flex gap-2 flex-shrink-0 h-[96px] overflow-hidden"
+          ? "flex gap-3 items-start"
+          : "mt-2 pt-2 border-t border-slate-100 flex gap-3 items-start flex-1 min-h-0 overflow-y-auto"
       }
       onClick={stopCardClick}
       onPointerDown={stopCardClick}
     >
-      <div className="flex-shrink-0 w-[92px] h-full flex items-center justify-center bg-sky-50/60 rounded-lg border border-sky-100/80">
+      <div className="flex-shrink-0 w-[92px] h-[100px] flex items-center justify-center bg-sky-50/60 rounded-lg border border-sky-100/80 overflow-hidden self-center">
         <BodyMannequin assignedRegions={regions} compact showHint={false} size="mini" staticGlow />
       </div>
-      <div className="flex-1 min-w-0 flex flex-col justify-center py-0.5 overflow-hidden">
-        <p className="text-slate-500 text-[10px] mb-1 flex-shrink-0" style={{ fontWeight: 600 }}>
+      <div className="flex-1 min-w-0 flex flex-col justify-center py-0.5">
+        <p className="text-slate-500 text-sm leading-5 h-5 mb-1 flex-shrink-0" style={{ fontWeight: 600 }}>
           已指派 {exercises.length} 項動作
         </p>
         {exercises.length === 0 ? (
-          <p className="text-slate-400 text-xs">尚未開立處方</p>
+          <p className="text-slate-400 text-sm leading-5 h-5">尚未開立處方</p>
         ) : (
-          <div className="min-h-0 overflow-hidden">
-            <AssignedExerciseList exercises={visible} />
-            {hiddenCount > 0 && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <button
-                    type="button"
-                    onClick={stopCardClick}
-                    onPointerDown={stopCardClick}
-                    className="text-xs text-sky-600 hover:text-sky-700 hover:underline mt-1 text-left"
-                    style={{ fontWeight: 600 }}
-                  >
-                    +{hiddenCount} 項 · 查看全部
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="w-72 max-w-[calc(100vw-2rem)] p-3 z-[70]"
-                  align="start"
-                  side={embedded ? "left" : "bottom"}
-                  onClick={stopCardClick}
-                  onPointerDown={stopCardClick}
-                >
-                  <p className="text-slate-800 text-sm mb-2" style={{ fontWeight: 700 }}>
-                    {patient.name} · 全部 {exercises.length} 項復健動作
-                  </p>
-                  <div className="max-h-56 overflow-y-auto pr-1">
-                    <AssignedExerciseList exercises={exercises} dense />
-                  </div>
-                </PopoverContent>
-              </Popover>
-            )}
+          <div className="min-w-0 max-h-48 overflow-y-auto pr-1">
+            <AssignedExerciseList exercises={exercises} />
           </div>
         )}
       </div>
@@ -734,35 +704,56 @@ function PrescriptionModal({
   );
 }
 
-function FullReportDialog({
+type DetailTab = "visual" | "adjust";
+
+const DETAIL_TABS: { id: DetailTab; label: string; icon: typeof Eye }[] = [
+  { id: "visual", label: "可視數據", icon: Eye },
+  { id: "adjust", label: "調整數據", icon: SlidersHorizontal },
+];
+
+function PatientDetailDialog({
   patient,
   open,
   onClose,
+  onPrescribe,
+  onViewProfile,
+  onConfigureReminder,
+  profileOpen,
+  onProfileClose,
 }: {
   patient: Patient | null;
   open: boolean;
   onClose: () => void;
+  onPrescribe: () => void;
+  onViewProfile: () => void;
+  onConfigureReminder: () => void;
+  profileOpen: boolean;
+  onProfileClose: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<DetailTab>("visual");
   const syncedAnalytics = usePatientAnalytics(DEFAULT_PATIENT_ID);
-  if (!patient) return null;
+  const activePatientId = useActivePatientId();
 
-  const assigned = exercisesForPatient(patient.assignedExerciseIds);
-  const profile = getPatientProfile(patient.id);
-  const analytics =
-    patient.id === DEFAULT_PATIENT_ID ? syncedAnalytics : getPatientAnalytics(patient.id);
-  const regions = regionsForPatient(patient.assignedExerciseIds);
-  const compliance = analytics.kpi.find((item) => item.name === "整體遵從")?.value ?? patient.compliance;
+  const analytics = patient
+    ? patient.id === DEFAULT_PATIENT_ID
+      ? syncedAnalytics
+      : getPatientAnalytics(patient.id)
+    : null;
+  const assigned = patient ? exercisesForPatient(patient.assignedExerciseIds) : [];
+  const profile = patient ? getPatientProfile(patient.id) : undefined;
+  const regions = patient ? regionsForPatient(patient.assignedExerciseIds) : [];
+  const compliance =
+    analytics?.kpi.find((item) => item.name === "整體遵從")?.value ?? patient?.compliance ?? 0;
   const todayCompletion =
-    analytics.kpi.find((item) => item.name === "今日完成")?.value ??
-    (patient.id === DEFAULT_PATIENT_ID ? 0 : patient.compliance);
-  const avgProgress = analytics.kpi.find((item) => item.name === "本週均分")?.value ?? compliance;
-  const weeklyTrend = analytics.weekly.map((item, idx) => ({
-    label: item.day === "今日" ? "今日" : `D${idx + 1}`,
-    value: item.completion,
-  }));
+    analytics?.kpi.find((item) => item.name === "今日完成")?.value ??
+    (patient?.id === DEFAULT_PATIENT_ID ? 0 : patient?.compliance ?? 0);
+  const avgProgress = analytics?.kpi.find((item) => item.name === "本週均分")?.value ?? compliance;
+  const lastSession =
+    patient?.id === DEFAULT_PATIENT_ID ? getLastSessionLabel() : (patient?.lastSession ?? "");
+  const isActiveOnPatientApp = patient ? activePatientId === patient.id : false;
 
   const clinicalNotes =
-    patient.status === "注意"
+    patient?.status === "注意"
       ? [
           "依從率偏低或趨勢下滑，建議主動電話關懷並檢視處方難度。",
           "評估疼痛指數與動作品質是否影響訓練意願。",
@@ -781,130 +772,307 @@ function FullReportDialog({
           ];
 
   return (
-    <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="sm:max-w-[1120px] rounded-3xl border-sky-100 p-0 overflow-hidden">
-        <div className="bg-gradient-to-r from-sky-500 to-blue-500 px-6 py-5 text-white">
-          <DialogHeader className="text-left">
-            <DialogTitle className="text-2xl" style={{ fontWeight: 800 }}>
-              {patient.name} 完整報告
-            </DialogTitle>
-            <DialogDescription className="text-sky-50">
-              匯整 KPI、訓練趨勢、疼痛與部位恢復評估 · 與家屬端監護總覽同源資料
-            </DialogDescription>
-          </DialogHeader>
-        </div>
-
-        <div className="px-6 py-5 max-h-[82vh] overflow-y-auto space-y-5">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {[
-              { label: "今日完成率", value: `${todayCompletion}%`, tone: "text-emerald-600" },
-              { label: "整體依從率", value: `${compliance}%`, tone: "text-sky-600" },
-              { label: "本週平均", value: `${avgProgress}%`, tone: "text-blue-600" },
-              {
-                label: "動作品質",
-                value:
-                  analytics.qualityToday != null ? `${analytics.qualityToday} 分` : "尚無",
-                tone: "text-emerald-600",
-              },
-              { label: "下次回診", value: patient.nextAppt, tone: "text-amber-600" },
-            ].map((item) => (
-              <div key={item.label} className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3">
-                <p className="text-slate-400 text-xs">{item.label}</p>
-                <p className={`text-lg mt-1 ${item.tone}`} style={{ fontWeight: 800 }}>
-                  {item.value}
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <PatientAnalyticsPanel analytics={analytics} theme="doctor" layout="compact" />
-
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4">
-            <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-              <h3 className="text-slate-800 text-sm mb-3" style={{ fontWeight: 700 }}>
-                病患摘要
-              </h3>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <p className="text-slate-700"><span className="text-slate-400">診斷：</span>{patient.diagnosis}</p>
-                <p className="text-slate-700"><span className="text-slate-400">階段：</span>{patient.phase}</p>
-                <p className="text-slate-700"><span className="text-slate-400">狀態：</span>{patient.status}</p>
-                <p className="text-slate-700"><span className="text-slate-400">最近訓練：</span>{patient.lastSession}</p>
-                {profile && (
-                  <>
-                    <p className="text-slate-700"><span className="text-slate-400">科別：</span>{profile.department}</p>
-                    <p className="text-slate-700"><span className="text-slate-400">病歷號：</span>{profile.medicalRecordNo}</p>
-                    <p className="text-slate-700 col-span-2"><span className="text-slate-400">過敏史：</span>{profile.allergies ?? "無"}</p>
-                  </>
-                )}
-                <p className="text-slate-700 col-span-2">
-                  <span className="text-slate-400">訓練部位：</span>
-                  {regions.map((r) => BODY_REGION_LABELS[r]).join("、")}
-                </p>
-              </div>
-
-              <h4 className="text-slate-600 text-xs mt-4 mb-2" style={{ fontWeight: 700 }}>
-                本週依從率走勢
-              </h4>
-              <div className="space-y-2">
-                {weeklyTrend.map((item, idx) => (
-                  <div key={`${item.label}-${idx}`}>
-                    <div className="flex items-center justify-between text-xs mb-0.5">
-                      <span className="text-slate-500">{item.label}</span>
-                      <span className="text-slate-800" style={{ fontWeight: 700 }}>{item.value}%</span>
-                    </div>
-                    <div className="h-1.5 rounded-full bg-white overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${
-                          item.value >= 80 ? "bg-emerald-400" : item.value >= 60 ? "bg-amber-400" : "bg-rose-400"
-                        }`}
-                        style={{ width: `${item.value}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="rounded-2xl border border-slate-100 bg-white p-4">
-              <h3 className="text-slate-800 text-sm mb-3" style={{ fontWeight: 700 }}>
-                目前處方與臨床建議
-              </h3>
-              <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                {assigned.map((exercise) => (
-                  <div key={exercise.id} className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-slate-800 text-sm" style={{ fontWeight: 700 }}>
-                        {exercise.name}
-                      </p>
-                      <p className="text-slate-500 text-xs mt-0.5">{exercise.setsReps}</p>
-                    </div>
-                    <span
-                      className="text-[10px] px-2 py-0.5 rounded-full flex-shrink-0"
-                      style={{
-                        background: `${REGION_COLORS[exercise.region]}22`,
-                        color: REGION_COLORS[exercise.region],
-                        fontWeight: 600,
-                      }}
-                    >
-                      {BODY_REGION_LABELS[exercise.region]}
+    <Dialog
+      open={open && Boolean(patient)}
+      onOpenChange={(next) => {
+        if (!next) {
+          setActiveTab("visual");
+          onClose();
+        }
+      }}
+    >
+      {patient && analytics && (
+        <DialogContent
+          className="portal-large-text sm:max-w-[1120px] rounded-3xl border-sky-100 p-0 overflow-hidden gap-0 [&_[data-slot=dialog-close]:focus-visible]:outline-none [&_[data-slot=dialog-close]:focus-visible]:outline-offset-0"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <div className="bg-gradient-to-r from-sky-500 to-blue-500 px-6 py-5 text-white [&_button:focus]:outline-none [&_button:focus-visible]:outline-none [&_button:focus-visible]:outline-offset-0">
+            <DialogHeader className="text-left">
+              <DialogTitle className="sr-only">{patient.name} 病患詳情</DialogTitle>
+              <DialogDescription className="sr-only">
+                可視數據與調整數據，與家屬端監護總覽同源
+              </DialogDescription>
+              <button
+                type="button"
+                onClick={onViewProfile}
+                className="flex items-center gap-3 w-full text-left rounded-xl hover:bg-white/10 outline-none focus:outline-none focus-visible:outline-none focus-visible:outline-offset-0 focus-visible:ring-0 transition-colors p-1 -m-1"
+                aria-label="查看個人資料"
+              >
+                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-white text-lg" style={{ fontWeight: 700 }}>
+                    {patient.name[0]}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-2xl text-white truncate" style={{ fontWeight: 800 }}>
+                    {patient.name}
+                  </h2>
+                  <p className="text-sky-50 text-sm mt-0.5">
+                    {patient.age} 歲 · {patient.diagnosis}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <span className="inline-block px-2 py-0.5 rounded-md text-sm border border-white/20 bg-white/10 text-white">
+                      {patient.status}
                     </span>
+                    <span className="text-sky-100/80 text-sm">點擊查看身高、體重、住址等資料</span>
                   </div>
-                ))}
-              </div>
-              <div className="rounded-xl bg-sky-50 border border-sky-100 px-4 py-3 mt-3">
-                <p className="text-sky-700 text-sm" style={{ fontWeight: 700 }}>
-                  醫師建議
-                </p>
-                <ul className="mt-2 space-y-1.5 text-sm text-slate-700 list-disc pl-5">
-                  {clinicalNotes.map((note) => (
-                    <li key={note}>{note}</li>
-                  ))}
-                </ul>
-              </div>
+                </div>
+              </button>
+            </DialogHeader>
+
+            <div className="flex bg-white/15 rounded-2xl p-1 mt-4 w-fit">
+              {DETAIL_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const active = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm transition-all ${
+                      active
+                        ? "bg-white text-sky-600 shadow-sm"
+                        : "text-sky-50 hover:text-white hover:bg-white/10"
+                    }`}
+                    style={{ fontWeight: 700 }}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        </div>
-      </DialogContent>
+
+          <div className="px-6 py-5 max-h-[78vh] overflow-y-auto">
+            {activeTab === "visual" ? (
+              <div className="space-y-5" key={`visual-${patient.id}`}>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3">
+                  {[
+                    { label: "今日完成率", value: `${todayCompletion}%`, tone: "text-emerald-600" },
+                    { label: "整體依從率", value: `${compliance}%`, tone: "text-sky-600" },
+                    { label: "本週平均", value: `${avgProgress}%`, tone: "text-blue-600" },
+                    {
+                      label: "動作品質",
+                      value:
+                        analytics.qualityToday != null ? `${analytics.qualityToday} 分` : "尚無",
+                      tone: "text-emerald-600",
+                    },
+                    { label: "下次回診", value: patient.nextAppt, tone: "text-amber-600" },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-2xl bg-slate-50 border border-slate-100 px-4 py-3"
+                    >
+                      <p className="text-slate-400 text-sm">{item.label}</p>
+                      <p className={`text-sm mt-1 ${item.tone}`} style={{ fontWeight: 800 }}>
+                        {item.value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+
+                <PatientAnalyticsPanel analytics={analytics} theme="doctor" layout="compact" />
+
+                <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4">
+                  <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                    <h3 className="text-slate-800 text-sm mb-3" style={{ fontWeight: 700 }}>
+                      病患摘要
+                    </h3>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                      <p className="text-slate-700">
+                        <span className="text-slate-400">診斷：</span>
+                        {patient.diagnosis}
+                      </p>
+                      <p className="text-slate-700">
+                        <span className="text-slate-400">階段：</span>
+                        {patient.phase}
+                      </p>
+                      <p className="text-slate-700">
+                        <span className="text-slate-400">狀態：</span>
+                        {patient.status}
+                      </p>
+                      <p className="text-slate-700">
+                        <span className="text-slate-400">最近訓練：</span>
+                        {lastSession}
+                      </p>
+                      {profile && (
+                        <>
+                          <p className="text-slate-700">
+                            <span className="text-slate-400">科別：</span>
+                            {profile.department}
+                          </p>
+                          <p className="text-slate-700">
+                            <span className="text-slate-400">病歷號：</span>
+                            {profile.medicalRecordNo}
+                          </p>
+                          <p className="text-slate-700 col-span-2">
+                            <span className="text-slate-400">過敏史：</span>
+                            {profile.allergies ?? "無"}
+                          </p>
+                        </>
+                      )}
+                      <p className="text-slate-700 col-span-2">
+                        <span className="text-slate-400">訓練部位：</span>
+                        {regions.map((r) => BODY_REGION_LABELS[r]).join("、")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-slate-100 bg-white p-4">
+                    <h3 className="text-slate-800 text-sm mb-3" style={{ fontWeight: 700 }}>
+                      目前處方與臨床建議
+                    </h3>
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                      {assigned.map((exercise) => (
+                        <div
+                          key={exercise.id}
+                          className="rounded-xl bg-slate-50 border border-slate-100 px-3 py-2 flex items-start justify-between gap-2"
+                        >
+                          <div>
+                            <p className="text-slate-800 text-sm" style={{ fontWeight: 700 }}>
+                              {exercise.name}
+                            </p>
+                          <p className="text-slate-500 text-sm mt-0.5">{exercise.setsReps}</p>
+                        </div>
+                        <span
+                          className="text-sm px-2 py-0.5 rounded-full flex-shrink-0"
+                          style={{
+                            background: `${REGION_COLORS[exercise.region]}22`,
+                            color: REGION_COLORS[exercise.region],
+                            fontWeight: 600,
+                          }}
+                        >
+                            {BODY_REGION_LABELS[exercise.region]}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="rounded-xl bg-sky-50 border border-sky-100 px-4 py-3 mt-3">
+                      <p className="text-sky-700 text-sm" style={{ fontWeight: 700 }}>
+                        醫師建議
+                      </p>
+                      <ul className="mt-2 space-y-1.5 text-sm text-slate-700 list-disc pl-5">
+                        {clinicalNotes.map((note) => (
+                          <li key={note}>{note}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4" key={`adjust-${patient.id}`}>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    {
+                      label: patient.id === DEFAULT_PATIENT_ID ? "今日完成率" : "依從率",
+                      value:
+                        patient.id === DEFAULT_PATIENT_ID
+                          ? `${todayCompletion}%`
+                          : `${compliance}%`,
+                      icon: Activity,
+                      color: "text-sky-500",
+                    },
+                    {
+                      label: "復健階段",
+                      value: patient.phase,
+                      icon: ClipboardList,
+                      color: "text-blue-400",
+                    },
+                    {
+                      label: "上次訓練",
+                      value: lastSession,
+                      icon: Clock,
+                      color: "text-slate-600",
+                    },
+                    {
+                      label: "下次回診",
+                      value: patient.nextAppt,
+                      icon: Calendar,
+                      color: "text-emerald-600",
+                    },
+                  ].map((metric) => {
+                    const Icon = metric.icon;
+                    return (
+                      <div
+                        key={metric.label}
+                        className="bg-slate-50 rounded-xl p-3 border border-slate-100"
+                      >
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <Icon className={`w-3.5 h-3.5 ${metric.color}`} />
+                          <span className="text-slate-500 text-sm">{metric.label}</span>
+                        </div>
+                        <p className="text-slate-800 text-sm" style={{ fontWeight: 600 }}>
+                          {metric.value}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
+                  <h3 className="text-slate-700 text-sm mb-2" style={{ fontWeight: 700 }}>
+                    目前指派動作
+                  </h3>
+                  <PatientAssignedPreview patient={patient} embedded />
+                </div>
+
+                <ExercisePlanEditor patientId={patient.id} patientName={patient.name} />
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={onPrescribe}
+                    className="py-3 rounded-xl bg-gradient-to-r from-sky-400 to-blue-400 text-white flex items-center justify-center gap-2 shadow-sm shadow-sky-200"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>開立復健處方</span>
+                  </motion.button>
+                  <button
+                    type="button"
+                    onClick={onConfigureReminder}
+                    className="py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
+                  >
+                    <Bell className="w-4 h-4" />
+                    <span>設定提醒通知</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isActiveOnPatientApp) return;
+                      setActivePatientId(patient.id);
+                      toast.success(`已同步至患者端`, {
+                        description: `患者端現在顯示 ${patient.name} 的個人化處方與訓練參數。`,
+                      });
+                    }}
+                    disabled={isActiveOnPatientApp}
+                    className={`py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors border ${
+                      isActiveOnPatientApp
+                        ? "border-emerald-200 bg-emerald-50 text-emerald-600 cursor-default"
+                        : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                    }`}
+                    aria-label={isActiveOnPatientApp ? "患者端展示中" : "同步到患者端"}
+                  >
+                    <MonitorSmartphone className="w-4 h-4" />
+                    <span>{isActiveOnPatientApp ? "患者端展示中 ✓" : "同步到患者端"}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {profile && (
+            <PatientProfileDialog
+              open={profileOpen}
+              onClose={onProfileClose}
+              profile={profile}
+              variant="doctor"
+            />
+          )}
+        </DialogContent>
+      )}
     </Dialog>
   );
 }
@@ -929,13 +1097,13 @@ function ReminderSettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
-      <DialogContent className="sm:max-w-2xl rounded-3xl border-sky-100 p-0 overflow-hidden">
+      <DialogContent className="portal-large-text sm:max-w-2xl rounded-3xl border-sky-100 p-0 overflow-hidden">
         <div className="bg-gradient-to-r from-sky-500 to-blue-500 px-6 py-5 text-white">
           <DialogHeader className="text-left">
             <DialogTitle className="text-2xl" style={{ fontWeight: 800 }}>
               設定提醒通知
             </DialogTitle>
-            <DialogDescription className="text-sky-50">
+            <DialogDescription className="text-sky-50 text-sm">
               {patient.name} · 自訂通知頻率、條件與提醒內容
             </DialogDescription>
           </DialogHeader>
@@ -947,14 +1115,14 @@ function ReminderSettingsDialog({
               <p className="text-slate-800 text-sm" style={{ fontWeight: 700 }}>
                 啟用病患提醒
               </p>
-              <p className="text-slate-500 text-xs mt-1">關閉後將停止自動推播與醫師端提醒</p>
+              <p className="text-slate-500 text-sm mt-1">關閉後將停止自動推播與醫師端提醒</p>
             </div>
             <Switch checked={settings.enabled} onCheckedChange={(checked) => update("enabled", checked)} />
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-slate-500 text-xs mb-2" style={{ fontWeight: 700 }}>
+              <p className="text-slate-500 text-sm mb-2" style={{ fontWeight: 700 }}>
                 提醒頻率
               </p>
               <Select value={settings.frequency} onValueChange={(value: ReminderSettings["frequency"]) => update("frequency", value)}>
@@ -969,7 +1137,7 @@ function ReminderSettingsDialog({
               </Select>
             </div>
             <div>
-              <p className="text-slate-500 text-xs mb-2" style={{ fontWeight: 700 }}>
+              <p className="text-slate-500 text-sm mb-2" style={{ fontWeight: 700 }}>
                 通知方式
               </p>
               <Select value={settings.channel} onValueChange={(value: ReminderSettings["channel"]) => update("channel", value)}>
@@ -986,7 +1154,7 @@ function ReminderSettingsDialog({
           </div>
 
           <div>
-            <p className="text-slate-500 text-xs mb-2" style={{ fontWeight: 700 }}>
+            <p className="text-slate-500 text-sm mb-2" style={{ fontWeight: 700 }}>
               每日提醒時間
             </p>
             <Input
@@ -1020,7 +1188,7 @@ function ReminderSettingsDialog({
                   <p className="text-slate-800 text-sm" style={{ fontWeight: 700 }}>
                     {item.title}
                   </p>
-                  <p className="text-slate-500 text-xs mt-1">{item.desc}</p>
+                  <p className="text-slate-500 text-sm mt-1">{item.desc}</p>
                 </div>
                 <Switch
                   checked={settings[item.key]}
@@ -1031,7 +1199,7 @@ function ReminderSettingsDialog({
           </div>
 
           <div>
-            <p className="text-slate-500 text-xs mb-2" style={{ fontWeight: 700 }}>
+            <p className="text-slate-500 text-sm mb-2" style={{ fontWeight: 700 }}>
               提醒備註
             </p>
             <textarea
@@ -1059,182 +1227,6 @@ function ReminderSettingsDialog({
   );
 }
 
-function PatientDetailPanel({
-  patient,
-  onClose,
-  onPrescribe,
-  onViewProfile,
-  onViewReport,
-  onConfigureReminder,
-}: {
-  patient: Patient;
-  onClose: () => void;
-  onPrescribe: () => void;
-  onViewProfile: () => void;
-  onViewReport: () => void;
-  onConfigureReminder: () => void;
-}) {
-  const syncedAnalytics = usePatientAnalytics(DEFAULT_PATIENT_ID);
-  const analytics =
-    patient.id === DEFAULT_PATIENT_ID ? syncedAnalytics : getPatientAnalytics(patient.id);
-  const compliance = analytics.kpi.find((item) => item.name === "整體遵從")?.value ?? patient.compliance;
-  const todayCompletion =
-    analytics.kpi.find((item) => item.name === "今日完成")?.value ??
-    (patient.id === DEFAULT_PATIENT_ID ? 0 : patient.compliance);
-  const lastSession =
-    patient.id === DEFAULT_PATIENT_ID ? getLastSessionLabel() : patient.lastSession;
-  const progressData = analytics.weekly.map((item, idx) => ({
-    week: item.day === "今日" ? "今日" : `D${idx + 1}`,
-    compliance: item.completion,
-  }));
-  const activePatientId = useActivePatientId();
-  const isActiveOnPatientApp = activePatientId === patient.id;
-
-  return (
-    <div className="w-[360px] portal-detail-panel flex-shrink-0 flex flex-col bg-white rounded-2xl border border-sky-100 shadow-sm overflow-hidden self-stretch">
-      <div className="bg-gradient-to-r from-sky-50 to-blue-50 px-5 py-4 border-b border-sky-100">
-        <div className="flex items-center justify-between mb-3">
-          <span className="text-sky-600 text-sm" style={{ fontWeight: 600 }}>
-            病患詳情
-          </span>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-lg bg-white/80 hover:bg-white border border-sky-100 flex items-center justify-center"
-          >
-            <X className="w-4 h-4 text-slate-500" />
-          </button>
-        </div>
-        <button
-          type="button"
-          onClick={onViewProfile}
-          className="flex items-center gap-3 w-full text-left rounded-xl hover:bg-white/60 transition-colors p-1 -m-1"
-          aria-label="查看個人資料"
-        >
-          <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-sky-600 text-lg" style={{ fontWeight: 700 }}>
-              {patient.name[0]}
-            </span>
-          </div>
-          <div>
-            <h2 className="text-slate-800" style={{ fontWeight: 700 }}>
-              {patient.name}
-            </h2>
-            <p className="text-slate-500 text-sm">
-              {patient.age} 歲 · {patient.diagnosis}
-            </p>
-            <span
-              className={`inline-block mt-1 px-2 py-0.5 rounded-md text-xs border ${STATUS_COLORS[patient.status]}`}
-            >
-              {patient.status}
-            </span>
-            <p className="text-sky-500 text-[10px] mt-1">點擊查看身高、體重、住址等資料</p>
-          </div>
-        </button>
-      </div>
-
-      <div className="p-3 space-y-3 overflow-y-auto flex-1 flex flex-col min-h-0">
-        <div className="grid grid-cols-2 gap-2">
-          {[
-            {
-              label: patient.id === DEFAULT_PATIENT_ID ? "今日完成率" : "依從率",
-              value:
-                patient.id === DEFAULT_PATIENT_ID ? `${todayCompletion}%` : `${compliance}%`,
-              icon: Activity,
-              color: "text-sky-500",
-            },
-            { label: "復健階段", value: patient.phase, icon: ClipboardList, color: "text-blue-400" },
-            { label: "上次訓練", value: lastSession, icon: Clock, color: "text-slate-600" },
-            { label: "下次回診", value: patient.nextAppt, icon: Calendar, color: "text-emerald-600" },
-          ].map((metric) => {
-            const Icon = metric.icon;
-            return (
-              <div key={metric.label} className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Icon className={`w-3.5 h-3.5 ${metric.color}`} />
-                  <span className="text-slate-500 text-xs">{metric.label}</span>
-                </div>
-                <p className="text-slate-800 text-sm" style={{ fontWeight: 600 }}>
-                  {metric.value}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-          <h3 className="text-slate-700 text-sm mb-2">目前指派動作</h3>
-          <PatientAssignedPreview patient={patient} embedded />
-        </div>
-
-        <ExercisePlanEditor patientId={patient.id} patientName={patient.name} />
-
-        <div className="bg-slate-50 rounded-xl p-3 border border-slate-100">
-          <h3 className="text-slate-700 text-sm mb-2">本週依從率趨勢</h3>
-          <ResponsiveContainer width="100%" height={90}>
-            <AreaChart data={progressData}>
-              <defs>
-                <linearGradient id="patientGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.3} />
-                  <stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="week" tick={{ fontSize: 15, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
-              <YAxis domain={[0, 100]} hide />
-              <Tooltip formatter={(v) => [`${v}%`, "依從率"]} contentStyle={{ borderRadius: 8, fontSize: 18 }} />
-              <Area type="monotone" dataKey="compliance" stroke="#38bdf8" strokeWidth={2} fill="url(#patientGrad)" dot={false} />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        <div className="space-y-2">
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={onPrescribe}
-            className="w-full py-3 rounded-xl bg-gradient-to-r from-sky-400 to-blue-400 text-white flex items-center justify-center gap-2 shadow-sm shadow-sky-200"
-          >
-            <Plus className="w-4 h-4" />
-            <span>開立復健處方</span>
-          </motion.button>
-          <button
-            onClick={onViewReport}
-            className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
-          >
-            <BarChart3 className="w-4 h-4" />
-            <span>查看完整報告</span>
-          </button>
-          <button
-            onClick={onConfigureReminder}
-            className="w-full py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm flex items-center justify-center gap-2 hover:bg-slate-50 transition-colors"
-          >
-            <Bell className="w-4 h-4" />
-            <span>設定提醒通知</span>
-          </button>
-          <button
-            onClick={() => {
-              if (isActiveOnPatientApp) return;
-              setActivePatientId(patient.id);
-              toast.success(`已同步至患者端`, {
-                description: `患者端現在顯示 ${patient.name} 的個人化處方與訓練參數。`,
-              });
-            }}
-            disabled={isActiveOnPatientApp}
-            className={`w-full py-2.5 rounded-xl text-sm flex items-center justify-center gap-2 transition-colors border ${
-              isActiveOnPatientApp
-                ? "border-emerald-200 bg-emerald-50 text-emerald-600 cursor-default"
-                : "border-slate-200 text-slate-600 hover:bg-slate-50"
-            }`}
-            aria-label={isActiveOnPatientApp ? "患者端展示中" : "同步到患者端"}
-          >
-            <MonitorSmartphone className="w-4 h-4" />
-            <span>{isActiveOnPatientApp ? "患者端展示中 ✓" : "同步到患者端"}</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function DoctorPortal() {
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
@@ -1246,14 +1238,12 @@ export function DoctorPortal() {
   const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
   const [showPrescription, setShowPrescription] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
   const [reminderOpen, setReminderOpen] = useState(false);
   const [reminderSettingsByPatient, setReminderSettingsByPatient] = useState<Record<string, ReminderSettings>>(
     Object.fromEntries(PATIENTS.map((patient) => [patient.id, DEFAULT_REMINDER_SETTINGS]))
   );
 
   const selectedPatient = patients.find((p) => p.id === selectedPatientId) ?? null;
-  const profilePatient = selectedPatient ? getPatientProfile(selectedPatient.id) : undefined;
   const activePatientId = useActivePatientId();
   const syncedAnalytics = usePatientAnalytics(DEFAULT_PATIENT_ID);
   const departmentOptions = useMemo(
@@ -1373,7 +1363,7 @@ export function DoctorPortal() {
                     <p className={`${s.color} text-sm leading-none`} style={{ fontWeight: 700 }}>
                       {s.value}
                     </p>
-                    <p className="text-slate-500 text-[10px] mt-0.5">{s.label}</p>
+                    <p className="text-slate-500 text-sm mt-0.5">{s.label}</p>
                   </div>
                 </div>
               );
@@ -1411,7 +1401,7 @@ export function DoctorPortal() {
                 >
                   <Filter className="w-5 h-5 flex-shrink-0" />
                   {(genderFilter !== "全部" || ageFilter !== "全部" || departmentFilter.length > 0) && (
-                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-white text-[10px] flex items-center justify-center border-2 border-white">
+                    <span className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-amber-400 text-white text-sm flex items-center justify-center border-2 border-white">
                       {(genderFilter !== "全部" ? 1 : 0) +
                         (ageFilter !== "全部" ? 1 : 0) +
                         departmentFilter.length}
@@ -1536,7 +1526,7 @@ export function DoctorPortal() {
               >
                 <span>{f}</span>
                 <span
-                  className={`px-1.5 py-0.5 rounded-full text-[10px] leading-none ${
+                  className={`px-1.5 py-0.5 rounded-full text-sm leading-none ${
                     filter === f ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
                   }`}
                   style={{ fontWeight: 700 }}
@@ -1548,115 +1538,138 @@ export function DoctorPortal() {
           </div>
         </div>
 
-        {/* Patient List + Detail Sidebar */}
-        <div className="flex-1 flex gap-3 min-h-0 overflow-hidden">
-          <div className="flex-1 min-w-0 overflow-hidden">
-            <div
-              className={`grid gap-2 h-full ${
-                selectedPatient ? "grid-cols-2 grid-rows-2" : "grid-cols-3 grid-rows-2"
-              }`}
-            >
-              {filtered.map((patient) => {
-                const TrendIcon = TREND_ICONS[patient.trend];
-                const isSelected = selectedPatient?.id === patient.id;
-                const compliance =
-                  patient.id === DEFAULT_PATIENT_ID
-                    ? getAnalyticsKpiValue(syncedAnalytics, "今日完成")
-                    : patient.compliance;
-                const complianceLabel =
-                  patient.id === DEFAULT_PATIENT_ID ? "今日完成率" : "依從率";
-                const lastSession =
-                  patient.id === DEFAULT_PATIENT_ID ? getLastSessionLabel() : patient.lastSession;
-                return (
-                  <div
-                    key={patient.id}
-                    onClick={() => setSelectedPatientId(patient.id)}
-                    className={`bg-white rounded-xl shadow-sm border p-3 cursor-pointer hover:shadow-md transition-shadow h-full flex flex-col overflow-hidden ${
-                      isSelected
-                        ? "border-sky-400 ring-2 ring-sky-100"
-                        : "border-slate-100 hover:border-sky-200"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center flex-shrink-0">
-                        <span className="text-sky-600" style={{ fontWeight: 700 }}>
-                          {patient.name[0]}
+        {/* Patient List */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <div className="grid gap-2 h-full grid-cols-3 grid-rows-2">
+            {filtered.map((patient) => {
+              const TrendIcon = TREND_ICONS[patient.trend];
+              const isSelected = selectedPatient?.id === patient.id;
+              const compliance =
+                patient.id === DEFAULT_PATIENT_ID
+                  ? getAnalyticsKpiValue(syncedAnalytics, "整體遵從")
+                  : patient.compliance;
+              const lastSession =
+                patient.id === DEFAULT_PATIENT_ID ? getLastSessionLabel() : patient.lastSession;
+              const regionCounts = regionCountsForPatient(patient.assignedExerciseIds);
+              return (
+                <div
+                  key={patient.id}
+                  onClick={() => setSelectedPatientId(patient.id)}
+                  className={`bg-white rounded-xl shadow-sm border p-3 cursor-pointer hover:shadow-md transition-shadow h-full flex flex-col overflow-hidden text-sm ${
+                    isSelected
+                      ? "border-sky-400 ring-2 ring-sky-100"
+                      : "border-slate-100 hover:border-sky-200"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-sky-100 flex items-center justify-center flex-shrink-0">
+                      <span className="text-sky-600 text-sm" style={{ fontWeight: 700 }}>
+                        {patient.name[0]}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between mb-0.5 gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-slate-800 text-sm truncate" style={{ fontWeight: 600 }}>
+                            {patient.name}
+                          </span>
+                          <span className="text-slate-400 text-sm flex-shrink-0">{patient.age}歲</span>
+                          {patient.id === activePatientId && (
+                            <span
+                              className="flex items-center gap-1 text-sm text-teal-600 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-full flex-shrink-0"
+                              style={{ fontWeight: 700 }}
+                            >
+                              <MonitorSmartphone className="w-3.5 h-3.5" />
+                              患者端
+                            </span>
+                          )}
+                        </div>
+                        <span
+                          className={`px-2 py-0.5 rounded-md text-sm border flex-shrink-0 ${STATUS_COLORS[patient.status]}`}
+                        >
+                          {patient.status}
                         </span>
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-0.5">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-slate-800 truncate" style={{ fontWeight: 600 }}>
-                              {patient.name}
-                            </span>
-                            <span className="text-slate-400 text-sm flex-shrink-0">{patient.age}歲</span>
-                            {patient.id === activePatientId && (
-                              <span className="flex items-center gap-1 text-[10px] text-teal-600 bg-teal-50 border border-teal-200 px-1.5 py-0.5 rounded-full flex-shrink-0" style={{ fontWeight: 700 }}>
-                                <MonitorSmartphone className="w-3 h-3" />
-                                患者端
-                              </span>
-                            )}
-                          </div>
-                          <span className={`px-2 py-0.5 rounded-md text-xs border flex-shrink-0 ${STATUS_COLORS[patient.status]}`}>
-                            {patient.status}
+                      <p className="text-slate-500 text-sm mb-2 truncate">{patient.diagnosis}</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <Activity className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                          <span className="text-slate-600 text-sm">依從率</span>
+                          <span className="text-slate-800 text-sm" style={{ fontWeight: 600 }}>
+                            {compliance}%
                           </span>
+                          <TrendIcon className={`w-4 h-4 flex-shrink-0 ${TREND_COLORS[patient.trend]}`} />
                         </div>
-                        <p className="text-slate-500 text-sm mb-2 truncate">{patient.diagnosis}</p>
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Activity className="w-3.5 h-3.5 text-slate-400" />
-                            <span className="text-slate-600 text-xs">{complianceLabel}</span>
-                            <span className="text-slate-800 text-sm" style={{ fontWeight: 600 }}>
-                              {compliance}%
-                            </span>
-                            <TrendIcon className={`w-4 h-4 ${TREND_COLORS[patient.trend]}`} />
-                          </div>
-                          <div className="flex items-center gap-1 text-xs text-slate-400">
-                            <Clock className="w-3 h-3" />
-                            <span>{lastSession}</span>
-                          </div>
-                        </div>
-                        <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full ${
-                              compliance >= 80
-                                ? "bg-emerald-400"
-                                : compliance >= 60
-                                ? "bg-amber-400"
-                                : "bg-red-400"
-                            }`}
-                            style={{ width: `${compliance}%` }}
-                          />
+                        <div className="flex items-center gap-1 text-sm text-slate-400 flex-shrink-0">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>{lastSession}</span>
                         </div>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0 mt-1" />
+                      <div className="mt-2 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full rounded-full ${
+                            compliance >= 80
+                              ? "bg-emerald-400"
+                              : compliance >= 60
+                                ? "bg-amber-400"
+                                : "bg-red-400"
+                          }`}
+                          style={{ width: `${compliance}%` }}
+                        />
+                      </div>
                     </div>
-                    <PatientAssignedPreview patient={patient} />
+                    <ChevronRight className="w-4 h-4 text-slate-300 flex-shrink-0 mt-1" />
                   </div>
-                );
-              })}
-            </div>
-
-            {filtered.length === 0 && (
-              <div className="text-center py-16 text-slate-400">
-                <Search className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                <p>找不到符合條件的病患</p>
-              </div>
-            )}
+                  <div className="mt-2 pt-2 border-t border-slate-100 flex gap-4 items-center flex-1 min-h-0">
+                    <div className="w-[120px] h-[160px] flex-shrink-0 flex items-center justify-center bg-sky-50/60 rounded-xl border border-sky-100/80 overflow-hidden">
+                      <BodyMannequin
+                        assignedRegions={regionCounts.map((item) => item.region)}
+                        compact
+                        showHint={false}
+                        size="compact"
+                        staticGlow
+                      />
+                    </div>
+                    <div className="flex-1 min-w-0 flex flex-col justify-center">
+                      <p className="text-base leading-6 text-slate-500 mb-1.5" style={{ fontWeight: 600 }}>
+                        部位復健數
+                      </p>
+                      {regionCounts.length === 0 ? (
+                        <p className="text-base leading-6 text-slate-400">尚未開立處方</p>
+                      ) : (
+                        <ul className="flex flex-col gap-0.5">
+                          {regionCounts.map((item) => (
+                            <li
+                              key={item.region}
+                              className="text-base leading-6 text-slate-700 flex items-center justify-between gap-2"
+                            >
+                              <span className="flex items-center gap-2 min-w-0">
+                                <span
+                                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                                  style={{ backgroundColor: item.color }}
+                                />
+                                <span className="truncate leading-6">{item.label}</span>
+                              </span>
+                              <span className="flex-shrink-0 tabular-nums leading-6 text-base" style={{ fontWeight: 700 }}>
+                                {item.count}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
-          <AnimatePresence>
-            {selectedPatient && (
-              <PatientDetailPanel
-                patient={selectedPatient}
-                onClose={() => setSelectedPatientId(null)}
-                onPrescribe={() => setShowPrescription(true)}
-                onViewProfile={() => setProfileOpen(true)}
-                onViewReport={() => setReportOpen(true)}
-                onConfigureReminder={() => setReminderOpen(true)}
-              />
-            )}
-          </AnimatePresence>
+          {filtered.length === 0 && (
+            <div className="text-center py-16 text-slate-400">
+              <Search className="w-10 h-10 mx-auto mb-3 opacity-40" />
+              <p>找不到符合條件的病患</p>
+            </div>
+          )}
         </div>
       </main>
 
@@ -1683,19 +1696,18 @@ export function DoctorPortal() {
         }))}
       />
 
-      {profilePatient && (
-        <PatientProfileDialog
-          open={profileOpen}
-          onClose={() => setProfileOpen(false)}
-          profile={profilePatient}
-          variant="doctor"
-        />
-      )}
-
-      <FullReportDialog
+      <PatientDetailDialog
         patient={selectedPatient}
-        open={reportOpen}
-        onClose={() => setReportOpen(false)}
+        open={Boolean(selectedPatient)}
+        onClose={() => {
+          setProfileOpen(false);
+          setSelectedPatientId(null);
+        }}
+        onPrescribe={() => setShowPrescription(true)}
+        onViewProfile={() => setProfileOpen(true)}
+        onConfigureReminder={() => setReminderOpen(true)}
+        profileOpen={profileOpen}
+        onProfileClose={() => setProfileOpen(false)}
       />
 
       <ReminderSettingsDialog
